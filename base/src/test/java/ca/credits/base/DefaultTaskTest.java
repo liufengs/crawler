@@ -102,11 +102,12 @@ public class DefaultTaskTest{
         Edge task1Edge2 = Edge.builder().id("task1Edge2").source(task1Event1).target(task2Node).build();
         Edge task1Edge3 = Edge.builder().id("task1Edge3").source(task1Event1).target(task3Node).build();
         Edge task1Edge4 = Edge.builder().id("task1Edge4").source(task2Node).target(task1EndEvent).build();
+        Edge task1Edge5 = Edge.builder().id("task1Edge4").source(task3Node).target(task1EndEvent).build();
 
         /**
          * create task1
          */
-        AbstractNode task1Node = DefaultTaskNode.create("task1",DAG.create().addEdges(task1Edge1,task1Edge2,task1Edge3,task1Edge4));
+        AbstractNode task1Node = DefaultTaskNode.create("task1",DAG.create().addEdges(task1Edge1,task1Edge2,task1Edge3,task1Edge4,task1Edge5));
 
         IExecutive executive = new DefaultTask("testLoggerEngine",task1Node,null);
 

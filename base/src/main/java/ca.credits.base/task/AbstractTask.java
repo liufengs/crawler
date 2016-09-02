@@ -85,7 +85,9 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         /**
          * if executive is task, then task start run task
          */
-        executive.run();
+        if (getStatus() != Status.EXCEPTION) {
+            executive.run();
+        }
     }
 
     @Override
@@ -133,9 +135,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
             countDownLatch.await(timeout, timeUnit);
         } catch (InterruptedException e) {
             log.error("task InterruptedException", e);
-            if (regulator != this){
-                regulator.exception(this,e,null);
-            }
+            this.onThrowable(this,e,null);
         }
     }
 
@@ -199,14 +199,14 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
                     case EXCEPTION:
                         childExecutive = getIExecutive(child);
                         if (childExecutive != null) {
-                            this.exception(childExecutive, throwable, args);
+                            childExecutive.onThrowable(childExecutive, throwable, args);
                         }
                         break;
                 }
             } catch (ParseException e) {
                 childExecutive = getIExecutive(child);
                 if (childExecutive != null) {
-                    this.exception(childExecutive, e, args);
+                    childExecutive.onThrowable(childExecutive, e, args);
                 }
             }
         } );
