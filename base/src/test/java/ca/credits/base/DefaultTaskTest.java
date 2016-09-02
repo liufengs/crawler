@@ -1,22 +1,15 @@
 package ca.credits.base;
 
-import ca.credits.base.event.IEvent;
-import ca.credits.base.event.LoggerEvent;
+import ca.credits.base.diagram.*;
 import ca.credits.base.task.DefaultTask;
-import ca.credits.base.task.ITask;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
-
-import java.util.ArrayList;
-import java.util.Collections;
 
 /**
  * Created by chenwen on 16/8/29.
  */
 @Slf4j
 public class DefaultTaskTest{
-
-
     /**
      *
      * <activity id="loggerEngineTest">
@@ -24,7 +17,7 @@ public class DefaultTaskTest{
      *          <event id="task1.startEvent" next="task1.event1">
      *          </event>
      *
-     *          <event id="task1.event1" next="task2">
+     *          <event id="task1.event1" next="task2,task3">
      *          </event>
      *
      *          <task id="task2" next="task1.endEvent">
@@ -38,6 +31,17 @@ public class DefaultTaskTest{
      *              </event>
      *          </task>
      *
+     *          <task id="task3" next="task1.endEvent">
+     *              <event id="task3.startEvent" next="task3.event1">
+     *              </event>
+     *
+     *              <event id="task3.event1" next="task3.endEvent">
+     *              </event>
+     *
+     *              <event id="task3.endEvent" next="end">
+     *              </event>
+     *          </task>
+     *
      *          <event id="task1.endEvent" next="end">
      *          </event>
      *      </task>
@@ -47,37 +51,66 @@ public class DefaultTaskTest{
      */
     @Test
     public void testLoggerEngine(){
+        /**
+         * create task1 nodes
+         */
+        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent");
+        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1");
+        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent");
 
-        final String activityId = "loggerEngineTest";
+        /**
+         * create task2 nodes
+         */
+        AbstractNode task2StartEvent = DefaultEventNode.create("task2.startEvent");
+        AbstractNode task2Event1 = DefaultEventNode.create("task2.event1");
+        AbstractNode task2EndEvent = DefaultEventNode.create("task2.endEvent");
 
-        final String task1Id = "task1";
 
-        final String task2Id = "task2";
+        /**
+         * create task3 nodes
+         */
+        AbstractNode task3StartEvent = DefaultEventNode.create("task3.startEvent");
+        AbstractNode task3Event1 = DefaultEventNode.create("task3.event1");
+        AbstractNode task3EndEvent = DefaultEventNode.create("task3.endEvent");
 
+        /**
+         * create task2 edges
+         */
+        Edge task2Edge1 = Edge.builder().id("task2Edge1").source(task2StartEvent).target(task2Event1).build();
+        Edge task2Edge2 = Edge.builder().id("task2Edge2").source(task2Event1).target(task2EndEvent).build();
 
-        ITask task1 = new DefaultTask(activityId,task1Id,null,null);
+        /**
+         * create task2
+         */
+        AbstractNode task2Node = DefaultTaskNode.create("task2",DAG.create().addEdges(task2Edge1,task2Edge2));
 
-        IEvent task1EndEvent = new LoggerEvent("task1.endEvent",null,task1);
+        /**
+         * create task3 edges
+         */
+        Edge task3Edge1 = Edge.builder().id("task3Edge1").source(task3StartEvent).target(task3Event1).build();
+        Edge task3Edge2 = Edge.builder().id("task3Edge2").source(task3Event1).target(task3EndEvent).build();
 
-        ITask task2 = new DefaultTask(activityId,task2Id, Collections.singletonList(task1EndEvent),task1);
+        /**
+         * create task3
+         */
+        AbstractNode task3Node = DefaultTaskNode.create("task3",DAG.create().addEdges(task3Edge1,task3Edge2));
 
-        IEvent task2EndEvent = new LoggerEvent("task2.endEvent",null,task2);
+        /**
+         * create task1 edges
+         */
+        Edge task1Edge1 = Edge.builder().id("task1Edge1").source(task1StartEvent).target(task1Event1).build();
+        Edge task1Edge2 = Edge.builder().id("task1Edge2").source(task1Event1).target(task2Node).build();
+        Edge task1Edge3 = Edge.builder().id("task1Edge3").source(task1Event1).target(task3Node).build();
+        Edge task1Edge4 = Edge.builder().id("task1Edge4").source(task2Node).target(task1EndEvent).build();
 
-        IEvent task2Event1 = new LoggerEvent("task2.event1",Collections.singletonList(task2EndEvent),task2);
+        /**
+         * create task1
+         */
+        AbstractNode task1Node = DefaultTaskNode.create("task1",DAG.create().addEdges(task1Edge1,task1Edge2,task1Edge3,task1Edge4));
 
-        IEvent task2StartEvent = new LoggerEvent("task2.startEvent",Collections.singletonList(task2Event1),task2);
+        IExecutive executive = new DefaultTask("testLoggerEngine",task1Node,null);
 
-        task2.setStartEvent(task2StartEvent);
-        task2.setEndEvent(task2EndEvent);
-
-        IEvent task1Event1 = new LoggerEvent("task1.event1",Collections.singletonList(task2),task1);
-
-        IEvent task1StartEvent = new LoggerEvent("task1.startEvent",Collections.singletonList(task1Event1),task1);
-
-        task1.setStartEvent(task1StartEvent);
-        task1.setEndEvent(task1EndEvent);
-
-        task1.run();
+        executive.run();
     }
 
     /**
@@ -102,30 +135,29 @@ public class DefaultTaskTest{
      */
     @Test
     public void testConcurrentLoggerEngine(){
-        final String activityId = "loggerEngineTest";
+        /**
+         * create task1 nodes
+         */
+        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent");
+        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1");
+        AbstractNode task1Event2 = DefaultEventNode.create("task1.event2");
+        AbstractNode task1Event3 = DefaultEventNode.create("task1.event3");
+        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent");
 
-        final String task1Id = "task1";
+        /**
+         * create task1 edges
+         */
+        Edge task1Edge1 = Edge.builder().id("task1Edge1").source(task1StartEvent).target(task1Event1).build();
+        Edge task1Edge2 = Edge.builder().id("task1Edge2").source(task1StartEvent).target(task1Event2).build();
+        Edge task1Edge3 = Edge.builder().id("task1Edge3").source(task1StartEvent).target(task1Event3).build();
+        Edge task1Edge4 = Edge.builder().id("task1Edge4").source(task1Event1).target(task1EndEvent).build();
+        Edge task1Edge5 = Edge.builder().id("task1Edge5").source(task1Event2).target(task1EndEvent).build();
+        Edge task1Edge6 = Edge.builder().id("task1Edge6").source(task1Event3).target(task1EndEvent).build();
 
+        AbstractNode task1 = DefaultTaskNode.create("task1",DAG.create().addEdges(task1Edge1,task1Edge2,task1Edge3,task1Edge4,task1Edge5,task1Edge6));
 
-        ITask task1 = new DefaultTask(activityId,task1Id,null,null);
+        IExecutive executive = new DefaultTask("testConcurrentLoggerEngine",task1,null);
 
-        IEvent task1EndEvent = new LoggerEvent("task1.endEvent",null,task1);
-
-        IEvent event3 = new LoggerEvent("task1.event3",Collections.singletonList(task1EndEvent),task1);
-
-        IEvent event2 = new LoggerEvent("task1.event2",Collections.singletonList(task1EndEvent),task1);
-
-        IEvent event1 = new LoggerEvent("task1.event1",Collections.singletonList(task1EndEvent),task1);
-
-        IEvent task1StartEvent = new LoggerEvent("task1.startEvent",new ArrayList<IExecutive>(){{
-            add(event1);
-            add(event2);
-            add(event3);
-        }},task1);
-
-        task1.setStartEvent(task1StartEvent);
-        task1.setEndEvent(task1EndEvent);
-
-        task1.run();
+        executive.run();
     }
 }

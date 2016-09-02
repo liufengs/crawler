@@ -1,9 +1,12 @@
 package ca.credits.base;
 
+import ca.credits.base.diagram.AbstractNode;
+import ca.credits.base.diagram.AbstractTaskNode;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.IGateway;
 import ca.credits.base.task.ITask;
 import ca.credits.common.ListUtil;
+import lombok.Getter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +28,11 @@ public abstract class AbstractExecutive implements IExecutive {
     protected String id;
 
     /**
+     * task id
+     */
+    protected String taskId;
+
+    /**
      * all listener
      */
     protected Vector<IListener> listeners;
@@ -35,20 +43,10 @@ public abstract class AbstractExecutive implements IExecutive {
     protected AtomicInteger status;
 
     /**
-     * the event child event.
-     * event1 -> event2 -> event3 , event3 is event2's child and event2 is event1's child
+     * the execute node
      */
-    protected List<IExecutive> children;
-
-    /**
-     * the event child event. like children
-     */
-    protected List<IExecutive> parents;
-
-    /**
-     * the gateway
-     */
-    protected IGateway gateway;
+    @Getter
+    protected AbstractNode node;
 
     /**
      * regulator manager
@@ -63,18 +61,12 @@ public abstract class AbstractExecutive implements IExecutive {
     /**
      * the default constructor
      */
-    public AbstractExecutive(String activityId,String id,List<IExecutive> children,IGateway gateway,IExecutiveManager regulator){
+    public AbstractExecutive(String activityId, AbstractNode node, IExecutiveManager regulator){
         status = new AtomicInteger(Status.UNDO.ordinal());
         listeners = new Vector<>();
-        this.id = id;
+        this.node = node;
         this.activityId = activityId;
-        this.children = children;
-        this.gateway = gateway;
         this.regulator = regulator;
-        if (ListUtil.isNotEmpty(children)){
-            children.stream().forEach(this::registerListener);
-            children.stream().forEach(child -> child.addParent(this));
-        }
     }
 
     /**
@@ -87,11 +79,9 @@ public abstract class AbstractExecutive implements IExecutive {
         /**
          * start event by this, then change event status to running and notify all listener
          */
-        if (subject == this){
-            status.set(Status.RUNNING.ordinal());
-            if (ListUtil.isNotEmpty(listeners)) {
-                listeners.parallelStream().forEach(listener -> listener.onStart(subject, args));
-            }
+        status.set(Status.RUNNING.ordinal());
+        if (ListUtil.isNotEmpty(listeners)) {
+            listeners.parallelStream().forEach(listener -> listener.onStart(subject, args));
         }
     }
 
@@ -105,30 +95,14 @@ public abstract class AbstractExecutive implements IExecutive {
         /**
          * complete event by this, then change event status to done and notify all listener
          */
-        if (subject == this){
-            status.set(Status.DONE.ordinal());
-            /**
-             * notify this regulator
-             */
-            if (regulator != null) {
-                regulator.complete(this, args);
-            }
-
-            if (ListUtil.isNotEmpty(listeners)) {
-                listeners.parallelStream().forEach(listener -> listener.onComplete(subject, args));
-            }
-        }else {
-            /**
-             * call gateway event complete,then check this event can run?
-             */
-            IGateway.GatewaySuggest suggest = gateway.suggest(this);
-
-            switch (suggest) {
-                case NEXT:
-                    regulator.next(this);
-                    break;
-            }
+        status.set(Status.DONE.ordinal());
+        if (ListUtil.isNotEmpty(listeners)) {
+            listeners.parallelStream().forEach(listener -> listener.onComplete(subject, args));
         }
+        /**
+         * notify this regulator
+         */
+        regulator.complete(this, args);
     }
 
     /**
@@ -139,33 +113,15 @@ public abstract class AbstractExecutive implements IExecutive {
      */
     @Override
     public void onThrowable(ISubject subject, Throwable throwable, Object args) {
-        if (subject == this){
-            this.throwable = throwable;
-            status.set(Status.EXCEPTION.ordinal());
-            /**
-             * notify this regulator
-             */
-            if (regulator != null) {
-                regulator.exception(this, throwable, args);
-            }
-            if (ListUtil.isNotEmpty(listeners)) {
-                listeners.parallelStream().forEach(listener -> listener.onThrowable(subject, throwable, args));
-            }
-        }else {
-            /**
-             * call gateway event complete,then check this event can run?
-             */
-            IGateway.GatewaySuggest suggest = gateway.suggest(this);
-
-            switch (suggest){
-                case NEXT:
-                    regulator.next(this);
-                    break;
-                case EXCEPTION:
-                    this.onThrowable(this,throwable,args);
-                    break;
-            }
+        this.throwable = throwable;
+        status.set(Status.EXCEPTION.ordinal());
+        if (ListUtil.isNotEmpty(listeners)) {
+            listeners.parallelStream().forEach(listener -> listener.onThrowable(subject, throwable, args));
         }
+        /**
+         * notify this regulator
+         */
+        regulator.exception(this, throwable, args);
     }
 
     /**
@@ -206,25 +162,12 @@ public abstract class AbstractExecutive implements IExecutive {
 
     @Override
     public String getTaskId() {
-        return this instanceof ITask ? id : this instanceof IEvent ? ((ITask)regulator).getTaskId() : null;
+        return taskId = (taskId != null ? taskId : this instanceof ITask ? node.getId() : this instanceof IEvent ? ((ITask)regulator).getTaskId() : null);
     }
 
     @Override
     public String getId() {
-        return id;
-    }
-
-    @Override
-    public List<IExecutive> getParents() {
-        return parents;
-    }
-
-    @Override
-    public void addParent(IExecutive executive){
-        if (parents == null){
-            parents = new ArrayList<>();
-        }
-        parents.add(executive);
+        return id = (id != null ? id : node.getId());
     }
 
     @Override

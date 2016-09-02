@@ -1,6 +1,9 @@
 package ca.credits.base.gateway;
 
 import ca.credits.base.IExecutive;
+import parsii.tokenizer.ParseException;
+
+import java.util.List;
 
 /**
  * Created by chenwen on 16/8/26.
@@ -9,10 +12,10 @@ public interface IGateway {
 
     /**
      * suggest next event
-     * @param executive this is current event
+     * @param parents this is current event's parents
      * @return
      */
-    GatewaySuggest suggest(IExecutive executive);
+    GatewaySuggest suggest(List<IExecutive> parents) throws ParseException;
 
     /**
      * gateway suggest

@@ -19,15 +19,15 @@ import java.util.List;
 @Slf4j
 public class DefaultGatewayTest {
     @Test
-    public void testSuggest() {
+    public void testSuggest() throws ParseException {
 
-        Executive one = new Executive("one",null, IExecutive.Status.DONE);
+        Executive one = new Executive("one", IExecutive.Status.DONE);
 
-        Executive two = new Executive("two",null, IExecutive.Status.EXCEPTION);
+        Executive two = new Executive("two", IExecutive.Status.EXCEPTION);
 
-        Executive three = new Executive("three",null, IExecutive.Status.DONE);
+        Executive three = new Executive("three", IExecutive.Status.DONE);
 
-        Executive four = new Executive("four",null, IExecutive.Status.EXCEPTION);
+        Executive four = new Executive("four", IExecutive.Status.EXCEPTION);
 
 
         final List<IExecutive> parents = new ArrayList<IExecutive>(){{
@@ -37,27 +37,26 @@ public class DefaultGatewayTest {
             add(four);
         }};
 
-        Executive executive = new Executive("self",parents, IExecutive.Status.UNDO);
         IGateway gateway = new DefaultGateway("one || two || three || four");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.NEXT);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.NEXT);
 
         gateway = new DefaultGateway("one && two || three || four");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.NEXT);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.NEXT);
 
         gateway = new DefaultGateway("one && two && three || four");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.EXCEPTION);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.EXCEPTION);
 
         gateway = new DefaultGateway("one && two && three && four");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.EXCEPTION);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.EXCEPTION);
 
         gateway = new DefaultGateway("(one && two) && (three && four)");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.EXCEPTION);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.EXCEPTION);
 
         gateway = new DefaultGateway("((((one && two) && (three && four))))");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.EXCEPTION);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.EXCEPTION);
 
         gateway = new DefaultGateway("one || ((two) && (three && four))");
-        Assert.assertEquals(gateway.suggest(executive), IGateway.GatewaySuggest.NEXT);
+        Assert.assertEquals(gateway.suggest(parents), IGateway.GatewaySuggest.NEXT);
     }
 
 
@@ -69,10 +68,9 @@ public class DefaultGatewayTest {
     }
 
     class Executive extends AbstractEvent {
-        public Executive(String id,List<IExecutive> parents,Status status){
-            super("loggerEngine","test","event",null,null,null);
+        public Executive(String id,Status status){
+            super("loggerEngine","test",null,null);
             this.id = id;
-            this.parents = parents;
             this.status.set(status.ordinal());
         }
     }

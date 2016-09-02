@@ -22,7 +22,7 @@ public class LoggerWorker extends AbstractWorker<LoggerEvent> {
     protected void doWork(LoggerEvent task) {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
-        log.info(String.format("start run event activityId = %s, taskId = %s, id = %s", task.getActivityId(), task.getTaskId(), task.getId()));
+//        log.info(String.format("start run event activityId = %s, taskId = %s, id = %s", task.getActivityId(), task.getTaskId(), task.getId()));
         task.onStart(task, null);
         try {
             log.info(String.format("complete event activityId = %s, taskId = %s, id = %s", task.getActivityId(), task.getTaskId(), task.getId()));
@@ -33,7 +33,7 @@ public class LoggerWorker extends AbstractWorker<LoggerEvent> {
             task.onThrowable(task, e, null);
         } finally {
             stopWatch.stop();
-            log.info(String.format("finally for event activityId = %s, taskId = %s, id = %s costTime = %s (ms)", task.getActivityId(), task.getTaskId(), task.getId(), stopWatch.getTotalTimeMillis()));
+//            log.info(String.format("finally for event activityId = %s, taskId = %s, id = %s costTime = %s (ms)", task.getActivityId(), task.getTaskId(), task.getId(), stopWatch.getTotalTimeMillis()));
         }
     }
 }

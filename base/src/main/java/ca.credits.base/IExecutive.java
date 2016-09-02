@@ -1,6 +1,6 @@
 package ca.credits.base;
 
-import java.util.List;
+import ca.credits.base.diagram.AbstractNode;
 
 /**
  * Created by chenwen on 16/8/26.
@@ -29,22 +29,17 @@ public interface IExecutive extends ISubject,IListener{
     String getId();
 
     /**
-     * get all parents
-     * @return parents
-     */
-    List<IExecutive> getParents();
-
-    /**
-     * add parent
-     * @param executive parent
-     */
-    void addParent(IExecutive executive);
-
-    /**
      * get status
      * @return status
      */
     Status getStatus();
+
+    /**
+     * get node
+     *
+     * @return node
+     */
+    AbstractNode getNode();
 
     /**
      * regulator status

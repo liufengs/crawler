@@ -4,6 +4,7 @@ import ca.credits.base.AbstractExecutive;
 import ca.credits.base.BeansFactory;
 import ca.credits.base.IExecutive;
 import ca.credits.base.IExecutiveManager;
+import ca.credits.base.diagram.AbstractNode;
 import ca.credits.base.engine.IEngine;
 import ca.credits.base.gateway.IGateway;
 
@@ -15,8 +16,8 @@ import java.util.List;
 public abstract class AbstractEvent extends AbstractExecutive implements IEvent {
     protected String workerClassName;
 
-    protected AbstractEvent(String workerClassName, String activityId, String id, List<IExecutive> children, IGateway gateway, IExecutiveManager regulator){
-        super(activityId,id,children,gateway,regulator);
+    protected AbstractEvent(String workerClassName, String activityId,AbstractNode node,IExecutiveManager regulator){
+        super(activityId,node,regulator);
         this.workerClassName = workerClassName;
     }
 

@@ -2,6 +2,7 @@ package ca.credits.base.gateway;
 
 import ca.credits.base.IExecutive;
 import ca.credits.common.ListUtil;
+import lombok.extern.slf4j.Slf4j;
 import parsii.eval.Expression;
 import parsii.eval.Parser;
 import parsii.tokenizer.ParseException;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 /**
  * Created by chenwen on 16/8/26.ßß
  */
+@Slf4j
 public class DefaultGateway implements IGateway {
     /**
      * gateway pattern
@@ -30,27 +32,27 @@ public class DefaultGateway implements IGateway {
 
     /**
      * this suggest
-     * @param executive this is current event
+     * @param parents this is current event's parents
      * @return
      */
     @Override
-    public GatewaySuggest suggest(IExecutive executive) {
+    public GatewaySuggest suggest(List<IExecutive> parents) throws ParseException{
         /**
          * 没有父节点(要么是StartEvent,要么是当前正在执行的根Task)
          */
-        if (ListUtil.isEmpty(executive.getParents())){
+        if (ListUtil.isEmpty(parents)){
             return GatewaySuggest.UNDO;
         }
 
         if (gateway == null || gateway.length() == 0){
-            return suggestAnd(executive.getParents());
+            return suggestAnd(parents);
         }
 
         String exprStr = gateway;
         /**
          * 是否父节点都执行完毕
          */
-        for(IExecutive parent : executive.getParents()){
+        for(IExecutive parent : parents){
             GatewaySuggest suggest = suggest(parent.getStatus());
             if (suggest == GatewaySuggest.UNDO){
                 return GatewaySuggest.UNDO;
@@ -65,10 +67,9 @@ public class DefaultGateway implements IGateway {
             Expression expr = Parser.parse(exprStr);
             return expr.evaluate() > 0.0 ? GatewaySuggest.NEXT : GatewaySuggest.EXCEPTION;
         } catch (ParseException e) {
-            executive.onThrowable(executive,e,null);
+            log.error("解析异常gateway ===> ",e);
+            throw e;
         }
-        return GatewaySuggest.UNDO;
-//        return suggest(gateway,executive.getParents());
     }
 
     /**
