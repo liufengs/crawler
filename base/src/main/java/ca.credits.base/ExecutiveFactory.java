@@ -22,7 +22,7 @@ public class ExecutiveFactory {
      * @param regulator regulator
      * @return
      */
-    public static IExecutive createExecutive(AbstractNode node,String activityId,IExecutiveManager regulator){
+    public static IExecutive createExecutive(AbstractNode node,String activityId,IExecutiveManager regulator)throws InvocationException{
         IExecutive result = null;
         if (node instanceof AbstractTaskNode) {
             Constructor<?>[] constructors = node.getBelong().getConstructors();
@@ -31,7 +31,7 @@ public class ExecutiveFactory {
                     result = (IExecutive) constructor.newInstance(activityId, node, regulator);
                     break;
                 }catch (IllegalAccessException | InstantiationException | InvocationTargetException e){
-                    log.error("create executive failed",e);
+                    throw new InvocationException("create executive instance failed, the constructor should like this. constructor(String activityId,AbstractNode node,IExecutiveManager regulator)",e);
                 }
             }
         }else {
@@ -41,7 +41,7 @@ public class ExecutiveFactory {
                     result = (IExecutive) constructor.newInstance(node, regulator);
                     break;
                 }catch (IllegalAccessException | InstantiationException | InvocationTargetException e){
-                    log.error("create executive failed",e);
+                    throw new InvocationException("create executive instance failed, the constructor should like this. constructor(AbstractNode node,IExecutiveManager regulator)",e);
                 }
             }
         }

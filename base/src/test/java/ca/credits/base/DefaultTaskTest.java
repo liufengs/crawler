@@ -5,6 +5,9 @@ import ca.credits.base.task.DefaultTask;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Created by chenwen on 16/8/29.
  */
@@ -50,7 +53,7 @@ public class DefaultTaskTest{
      *
      */
     @Test
-    public void testLoggerEngine(){
+    public void testLoggerEngine() throws InterruptedException {
         /**
          * create task1 nodes
          */
@@ -102,7 +105,7 @@ public class DefaultTaskTest{
         Edge task1Edge2 = Edge.builder().id("task1Edge2").source(task1Event1).target(task2Node).build();
         Edge task1Edge3 = Edge.builder().id("task1Edge3").source(task1Event1).target(task3Node).build();
         Edge task1Edge4 = Edge.builder().id("task1Edge4").source(task2Node).target(task1EndEvent).build();
-        Edge task1Edge5 = Edge.builder().id("task1Edge4").source(task3Node).target(task1EndEvent).build();
+        Edge task1Edge5 = Edge.builder().id("task1Edge5").source(task3Node).target(task1EndEvent).build();
 
         /**
          * create task1
@@ -135,7 +138,7 @@ public class DefaultTaskTest{
      *
      */
     @Test
-    public void testConcurrentLoggerEngine(){
+    public void testConcurrentLoggerEngine() throws InterruptedException {
         /**
          * create task1 nodes
          */
@@ -160,5 +163,13 @@ public class DefaultTaskTest{
         IExecutive executive = new DefaultTask("testConcurrentLoggerEngine",task1,null);
 
         executive.run();
+
+        Lock lock = new ReentrantLock();
+
+        lock.lock();
+
+        log.info("hello");
+
+        lock.unlock();
     }
 }

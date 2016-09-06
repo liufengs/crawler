@@ -16,6 +16,11 @@ public interface IQueue<T> {
      */
     void put(T t)throws InterruptedException;
 
+    /**
+     * get least task
+     * @return count
+     */
+    int getLeastTask();
 
     String getName();
 }

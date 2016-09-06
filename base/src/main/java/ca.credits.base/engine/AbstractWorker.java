@@ -1,5 +1,6 @@
 package ca.credits.base.engine;
 
+import ca.credits.base.ComponentFactory;
 import ca.credits.base.concurrent.ICountDownLatch;
 import ca.credits.base.concurrent.StandaloneCountDownLatch;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ public abstract class AbstractWorker<T> extends Thread {
     public AbstractWorker(IWorkerManager<T> workerManager){
         this.workerManager = workerManager;
         this.status = Status.WAITING;
-        this.countDownLatch = new StandaloneCountDownLatch(1);
+        this.countDownLatch = ComponentFactory.tryCountDownLatch(1);
     }
 
     /**

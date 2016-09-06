@@ -1,13 +1,13 @@
 package ca.credits.base.diagram;
 
+import ca.credits.base.ComponentFactory;
 import ca.credits.common.ListUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Created by chenwen on 16/9/1.
@@ -40,6 +40,21 @@ public class DAG {
     private Map<String,Edge> edgeMap = new HashMap<>();
 
     /**
+     * the timeUnit
+     */
+    protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
+
+    /**
+     * the get lock time
+     */
+    protected long time = 60000;
+
+    /**
+     * get lock
+     */
+    protected Lock lock = ComponentFactory.getLock(getLockKey());
+
+    /**
      * default create method
      * @return DAG
      */
@@ -58,7 +73,7 @@ public class DAG {
      * @param abstractNode end abstractNode
      * @return
      */
-    public DAG withStartNode(AbstractNode abstractNode){
+    public DAG withStartNode(AbstractNode abstractNode) throws InterruptedException {
         this.startAbstractNode = abstractNode;
         return addNodes(abstractNode);
     }
@@ -68,7 +83,7 @@ public class DAG {
      * @param abstractNode start abstractNode
      * @return
      */
-    public DAG withEndNode(AbstractNode abstractNode){
+    public DAG withEndNode(AbstractNode abstractNode) throws InterruptedException {
         this.endAbstractNode = abstractNode;
         return addNodes(abstractNode);
     }
@@ -78,12 +93,20 @@ public class DAG {
      * @param abstractNodes abstractNodes
      * @return
      */
-    private synchronized DAG addNodes(List<AbstractNode> abstractNodes){
-        abstractNodes.stream().forEach(node -> {
-            if (!nodeMap.containsKey(node.getId())){
-                nodeMap.put(node.getId(),node);
+    private DAG addNodes(List<AbstractNode> abstractNodes) throws InterruptedException {
+        try{
+            if (lock.tryLock(time,timeUnit)){
+                abstractNodes.stream().forEach(node -> {
+                    if (!nodeMap.containsKey(node.getId())){
+                        nodeMap.put(node.getId(),node);
+                    }
+                });
             }
-        });
+        }finally {
+            if (lock != null){
+                lock.unlock();
+            }
+        }
         return this;
     }
     /**
@@ -91,7 +114,7 @@ public class DAG {
      * @param abstractNodes abstractNodes
      * @return
      */
-    private synchronized DAG addNodes(AbstractNode... abstractNodes){
+    private DAG addNodes(AbstractNode... abstractNodes) throws InterruptedException {
         return addNodes(Arrays.asList(abstractNodes));
     }
     /**
@@ -99,15 +122,27 @@ public class DAG {
      * @param edges edges
      * @return
      */
-    public synchronized DAG addEdges(List<Edge> edges){
-        edges.stream().forEach(edge -> {
-            if (!edgeMap.containsKey(edge.getId())){
-                edgeMap.put(edge.getId(),edge);
-                addNodes(edge.getSource(),edge.getTarget());
-                edge.getSource().addChildren(edge.getTarget());
-                edge.getTarget().addParents(edge.getSource());
+    public synchronized DAG addEdges(List<Edge> edges) throws InterruptedException {
+        try{
+            if (lock.tryLock(time,timeUnit)){
+                edges.stream().forEach(edge -> {
+                    if (!edgeMap.containsKey(edge.getId())){
+                        edgeMap.put(edge.getId(),edge);
+                        try {
+                            addNodes(edge.getSource(),edge.getTarget());
+                            edge.getSource().addChildren(edge.getTarget());
+                            edge.getTarget().addParents(edge.getSource());
+                        } catch (InterruptedException e) {
+                            log.error("lock exception",e);
+                        }
+                    }
+                });
             }
-        });
+        }finally {
+            if (lock != null){
+                lock.unlock();
+            }
+        }
         return this;
     }
 
@@ -116,7 +151,7 @@ public class DAG {
      * @param edges edges
      * @return
      */
-    public synchronized DAG addEdges(Edge... edges){
+    public DAG addEdges(Edge... edges) throws InterruptedException {
         return addEdges(Arrays.asList(edges));
     }
 
@@ -155,5 +190,13 @@ public class DAG {
             }
         }
         return endAbstractNode;
+    }
+
+    /**
+     * lock id
+     * @return lock
+     */
+    protected String getLockKey(){
+        return String.format("%s_%s",this.getClass().getName(), UUID.randomUUID().toString());
     }
 }

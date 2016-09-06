@@ -3,6 +3,7 @@ package ca.credits.base.task;
 import ca.credits.base.*;
 import ca.credits.base.concurrent.ICountDownLatch;
 import ca.credits.base.concurrent.StandaloneCountDownLatch;
+import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.base.diagram.*;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.DefaultGateway;
@@ -12,11 +13,9 @@ import parsii.tokenizer.ParseException;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +32,16 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * the timeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
+
+    /**
+     * lock
+     */
+    protected Lock lock = ComponentFactory.getLock(getLockKey());
+
+    /**
+     * the get lock time
+     */
+    protected long time = 60000;
 
     /**
      * the start event
@@ -54,9 +63,10 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      */
     private ICountDownLatch countDownLatch;
 
+
     public AbstractTask(String activityId,AbstractNode node,IExecutiveManager regulator){
         super(activityId,node,regulator);
-        this.countDownLatch = new StandaloneCountDownLatch(1);
+        this.countDownLatch = ComponentFactory.tryCountDownLatch(1);
         this.executiveMap = new HashMap<>();
     }
 
@@ -66,7 +76,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
          * if endEvent is not null and endEvent complete, then task is completed
          */
         if (isEndEvent(executive)){
-            this.onComplete(this,args);
+            this.onComplete(this, args);
         }else if (executive == this){
             /**
              * this task is complete
@@ -85,7 +95,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         /**
          * if executive is task, then task start run task
          */
-        if (getStatus() != Status.EXCEPTION) {
+        if (!isComplete()) {
             executive.run();
         }
     }
@@ -120,22 +130,44 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         /**
          * step 2: get start node and start node
          */
+
         IExecutive executive = getIExecutive(getNode().getDag().getStartAbstractNode());
 
         if (executive == null){
             return;
         }
 
+        this.onStart(this,null);
+
         executive.run();
 
         /**
          * step 3: if event task will sync wait node complete
          */
-        try {
-            countDownLatch.await(timeout, timeUnit);
-        } catch (InterruptedException e) {
-            log.error("task InterruptedException", e);
-            this.onThrowable(this,e,null);
+        if (regulator == this) {
+            new Waiter(this).run();
+        }else {
+            new Thread(new Waiter(this)).start();
+        }
+    }
+
+    /**
+     * waiter
+     */
+    class Waiter implements Runnable{
+        private IExecutive executive;
+
+        public Waiter(IExecutive executive){
+            this.executive = executive;
+        }
+        @Override
+        public void run() {
+            try {
+                countDownLatch.await(timeout, timeUnit);
+            } catch (InterruptedException e) {
+                log.error("task InterruptedException", e);
+                executive.onThrowable(executive, e, null);
+            }
         }
     }
 
@@ -175,13 +207,8 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         children.parallelStream().forEach(child -> {
             List<AbstractNode> parents = child.getParents();
             for(AbstractNode parent : parents){
-                if (!executiveMap.containsKey(parent.getId())){
+                if (!executiveMap.containsKey(parent.getId()) || !executiveMap.get(parent.getId()).isComplete()){
                     return;
-                }else {
-                    IExecutive parentExecutive = executiveMap.get(parent.getId());
-                    if (parentExecutive.getStatus() != Status.EXCEPTION && parentExecutive.getStatus() != Status.DONE){
-                        return;
-                    }
                 }
             }
             List<IExecutive> parentsExecutive = parents.parallelStream().map(parent -> executiveMap.get(parent.getId())).collect(Collectors.toList());
@@ -190,18 +217,18 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
             try {
                 IGateway.GatewaySuggest suggest = gateway.suggest(parentsExecutive);
                 switch (suggest){
-                    case NEXT:
-                        childExecutive = getIExecutive(child);
-                        if (childExecutive != null) {
-                            this.next(childExecutive);
-                        }
-                        break;
-                    case EXCEPTION:
-                        childExecutive = getIExecutive(child);
-                        if (childExecutive != null) {
-                            childExecutive.onThrowable(childExecutive, throwable, args);
-                        }
-                        break;
+                case NEXT:
+                    childExecutive = getIExecutive(child);
+                    if (childExecutive != null) {
+                        this.next(childExecutive);
+                    }
+                    break;
+                case EXCEPTION:
+                    childExecutive = getIExecutive(child);
+                    if (childExecutive != null) {
+                        childExecutive.onThrowable(childExecutive, throwable, args);
+                    }
+                    break;
                 }
             } catch (ParseException e) {
                 childExecutive = getIExecutive(child);
@@ -217,15 +244,28 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * @param node node
      * @return executive
      */
-    private synchronized IExecutive getIExecutive(AbstractNode node){
-        if (executiveMap.containsKey(node.getId())){
-            return null;
+    private IExecutive getIExecutive(AbstractNode node){
+        try {
+            if (lock.tryLock(time,timeUnit)) {
+                if (executiveMap.containsKey(node.getId())) {
+                    return null;
+                }
+                IExecutive result = ExecutiveFactory.createExecutive(node, activityId, this);
+                if (result != null) {
+                    executiveMap.put(node.getId(), result);
+                }
+                return result;
+            }else {
+                throw new TryLockTimeoutException("get lock error lockKey = " + getLockKey(),time,timeUnit);
+            }
+        } catch (InterruptedException | InvocationException | TryLockTimeoutException e) {
+            this.onThrowable(this,e,null);
+        } finally {
+            if (lock != null){
+                lock.unlock();
+            }
         }
-        IExecutive result = ExecutiveFactory.createExecutive(node,activityId,this);
-        if (result != null) {
-            executiveMap.put(node.getId(), result);
-        }
-        return result;
+        return null;
     }
 
     /**
@@ -235,5 +275,13 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      */
     private boolean isEndEvent(IExecutive executive){
         return getNode().getDag().getEndAbstractNode() != null && executive.getId().equals(getNode().getDag().getEndAbstractNode().getId());
+    }
+
+    /**
+     * get lock key
+     * @return lock key
+     */
+    private String getLockKey(){
+        return String.format("%s_%s_%s_%s",this.getClass().getName() ,activityId, getId(), UUID.randomUUID().toString());
     }
 }

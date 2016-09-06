@@ -13,7 +13,7 @@ import java.util.List;
 public class DAGTest {
 
     @Test
-    public void test(){
+    public void test()throws Exception{
         AbstractNode abstractNode1 = DefaultEventNode.create("1");
         AbstractNode abstractNode2 = DefaultEventNode.create("2");
         AbstractNode abstractNode3 = DefaultEventNode.create("3");
@@ -42,9 +42,18 @@ public class DAGTest {
         }};
 
         DAG dag = DAG.create();
-        edges.parallelStream().forEach(dag::addEdges);
+
+        edges.parallelStream().forEach(key -> {
+            try {
+                dag.addEdges(key);
+            }catch (Exception e){
+
+            }
+        });
 
         AbstractNode task = DefaultTaskNode.create("1",dag);
+
+        log.info("");
 
         log.info(task.show());
     }

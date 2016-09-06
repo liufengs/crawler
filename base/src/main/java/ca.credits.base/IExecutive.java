@@ -42,6 +42,12 @@ public interface IExecutive extends ISubject,IListener{
     AbstractNode getNode();
 
     /**
+     * executive is complete
+     * @return
+     */
+    boolean isComplete();
+
+    /**
      * regulator status
      */
     enum Status{

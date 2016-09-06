@@ -10,9 +10,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class StandaloneQueue<T> implements IQueue<T> {
     private BlockingQueue<T> queue = new LinkedBlockingQueue<>();
 
-    private Class name;
+    private String name;
 
-    public StandaloneQueue(Class name){
+    public StandaloneQueue(String name){
         this.name = name;
     }
 
@@ -27,7 +27,12 @@ public class StandaloneQueue<T> implements IQueue<T> {
     }
 
     @Override
+    public int getLeastTask() {
+        return queue.size();
+    }
+
+    @Override
     public String getName() {
-        return name.getName();
+        return name;
     }
 }

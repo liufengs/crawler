@@ -5,8 +5,10 @@ import ca.credits.base.diagram.AbstractTaskNode;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.IGateway;
 import ca.credits.base.task.ITask;
+import ca.credits.base.util.StringUtils;
 import ca.credits.common.ListUtil;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by chenwen on 16/8/26.
  */
+@Slf4j
 public abstract class AbstractExecutive implements IExecutive {
     /**
      * activityId
@@ -76,6 +79,9 @@ public abstract class AbstractExecutive implements IExecutive {
      */
     @Override
     public void onStart(final ISubject subject, final Object args) {
+        if (log.isDebugEnabled()){
+            log.debug(StringUtils.formatExecutive((IExecutive) subject,args,"start run"));
+        }
         /**
          * start event by this, then change event status to running and notify all listener
          */
@@ -92,6 +98,9 @@ public abstract class AbstractExecutive implements IExecutive {
      */
     @Override
     public void onComplete(ISubject subject, Object args) {
+        if (log.isDebugEnabled()){
+            log.debug(StringUtils.formatExecutive((IExecutive) subject,args,"success complete"));
+        }
         /**
          * complete event by this, then change event status to done and notify all listener
          */
@@ -113,6 +122,7 @@ public abstract class AbstractExecutive implements IExecutive {
      */
     @Override
     public void onThrowable(ISubject subject, Throwable throwable, Object args) {
+        log.error(StringUtils.formatExecutive((IExecutive) subject,args,"exec throw exception"),throwable);
         this.throwable = throwable;
         status.set(Status.EXCEPTION.ordinal());
         if (ListUtil.isNotEmpty(listeners)) {
@@ -173,5 +183,10 @@ public abstract class AbstractExecutive implements IExecutive {
     @Override
     public Status getStatus() {
         return Status.getValue(status.get());
+    }
+
+    @Override
+    public boolean isComplete() {
+        return getStatus() == Status.EXCEPTION || getStatus() == Status.DONE;
     }
 }

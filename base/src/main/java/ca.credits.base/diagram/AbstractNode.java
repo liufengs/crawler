@@ -1,12 +1,18 @@
 package ca.credits.base.diagram;
 
+import ca.credits.base.ComponentFactory;
 import ca.credits.base.IExecutive;
+import ca.credits.base.concurrent.ConcurrentLockException;
+import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.common.ListUtil;
 import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Created by chenwen on 16/9/1.
@@ -45,6 +51,21 @@ public abstract class AbstractNode {
     private boolean isKeyNode;
 
     /**
+     * the timeUnit
+     */
+    protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
+
+    /**
+     * the get lock time
+     */
+    protected long time = 60000;
+
+    /**
+     * get lock
+     */
+    protected Lock lock = ComponentFactory.getLock(getLockKey());
+
+    /**
      * the default is not key node
      * @param id id
      */
@@ -79,7 +100,7 @@ public abstract class AbstractNode {
      * @param children children
      * @return
      */
-    public AbstractNode addChildren(AbstractNode... children){
+    public AbstractNode addChildren(AbstractNode... children) throws ConcurrentLockException,TryLockTimeoutException {
         return addChildren(Arrays.asList(children));
     }
 
@@ -88,7 +109,7 @@ public abstract class AbstractNode {
      * @param parents parents
      * @return
      */
-    public AbstractNode addParents(AbstractNode... parents){
+    public AbstractNode addParents(AbstractNode... parents) throws ConcurrentLockException,TryLockTimeoutException {
         return addParents(Arrays.asList(parents));
     }
 
@@ -97,8 +118,22 @@ public abstract class AbstractNode {
      * @param children children
      * @return
      */
-    public synchronized AbstractNode addChildren(List<AbstractNode> children){
-        this.children.addAll(children);
+    public AbstractNode addChildren(List<AbstractNode> children) throws ConcurrentLockException,TryLockTimeoutException {
+        try{
+            try {
+                if (lock.tryLock(time,timeUnit)){
+                    this.children.addAll(children);
+                }else {
+                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
+                }
+            } catch (InterruptedException e) {
+                throw new ConcurrentLockException("try lock failed",e);
+            }
+        }finally {
+            if (lock != null){
+                lock.unlock();
+            }
+        }
         return this;
     }
 
@@ -107,8 +142,22 @@ public abstract class AbstractNode {
      * @param parents parents
      * @return
      */
-    public synchronized AbstractNode addParents(List<AbstractNode> parents){
-        this.parents.addAll(parents);
+    public synchronized AbstractNode addParents(List<AbstractNode> parents) throws ConcurrentLockException,TryLockTimeoutException {
+        try{
+            try {
+                if (lock.tryLock(time,timeUnit)){
+                    this.parents.addAll(parents);
+                }else {
+                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
+                }
+            } catch (InterruptedException e) {
+                throw new ConcurrentLockException("try lock failed",e);
+            }
+        }finally {
+            if (lock != null){
+                lock.unlock();
+            }
+        }
         return this;
     }
 
@@ -134,5 +183,13 @@ public abstract class AbstractNode {
         stringBuilder.append(" )");
 
         return String.format("%s -> %s",this.getId(),stringBuilder.toString());
+    }
+
+    /**
+     * lock id
+     * @return lock
+     */
+    protected String getLockKey(){
+        return String.format("%s_%s_%s",this.getClass().getName(),getId(), UUID.randomUUID().toString());
     }
 }
