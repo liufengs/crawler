@@ -1,8 +1,8 @@
 package ca.credits.base.engine;
 
 import ca.credits.base.balance.IBalanceManager;
+import ca.credits.base.event.DefaultEvent;
 import ca.credits.base.event.IEvent;
-import ca.credits.base.event.LoggerEvent;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.inject.Inject;
@@ -15,12 +15,12 @@ import javax.inject.Singleton;
 @Slf4j
 @Named("loggerManagerEngine")
 @Singleton
-public class LoggerWorkerManager extends AbstractWorkerManager<LoggerEvent,LoggerWorker>{
+public class LoggerWorkerManager extends AbstractWorkerManager<DefaultEvent,LoggerWorker>{
 
     /**
      * the default workers count
      */
-    private final static int DEFAULT_WORKERS_COUNT = 1;
+    private final static int DEFAULT_WORKERS_COUNT = 2;
 
     /**
      * default constructor
@@ -37,7 +37,7 @@ public class LoggerWorkerManager extends AbstractWorkerManager<LoggerEvent,Logge
     @Override
     public void addTask(IEvent event) {
         try {
-            queue.put((LoggerEvent) event);
+            queue.put((DefaultEvent) event);
         } catch (InterruptedException e) {
             event.onThrowable(event,e,null);
         }

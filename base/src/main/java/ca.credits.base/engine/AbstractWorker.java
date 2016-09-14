@@ -53,7 +53,7 @@ public abstract class AbstractWorker<T> extends Thread {
             T task;
             try{
                 status = Status.WAITING;
-                task = workerManager.take(this);
+                task = workerManager.take();
             }catch (InterruptedException e) {
                 break;
             }

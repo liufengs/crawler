@@ -16,7 +16,7 @@ public interface ICountDownLatch {
     /**
      * 等待count为0,或者超时
      * @param timeout times
-     * @param unit time unit
+     * @param unit lockTime unit
      * @throws InterruptedException interrupted exception
      */
     void await(long timeout, TimeUnit unit)throws InterruptedException;

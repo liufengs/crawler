@@ -1,13 +1,19 @@
 package ca.credits.base.diagram;
 
 import ca.credits.base.ComponentFactory;
+import ca.credits.base.concurrent.ConcurrentLockException;
 import ca.credits.common.ListUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
+import java.util.stream.Collectors;
 
 /**
  * Created by chenwen on 16/9/1.
@@ -18,41 +24,29 @@ import java.util.concurrent.locks.Lock;
 @Slf4j
 public class DAG {
     /**
-     * start abstractNode
+     * all nodes
      */
-    private AbstractNode startAbstractNode;
+    private Map<String,AbstractNode> nodes;
 
     /**
-     * end abstractNode
+     * all edges
      */
-    private AbstractNode endAbstractNode;
+    private Map<String,Edge> edges;
 
     /**
-     * the key is abstractNode id , the value is abstractNode
-     */
-    @Getter
-    private Map<String,AbstractNode> nodeMap = new HashMap<>();
-
-    /**
-     * the key is edge id , the value is edge
-     */
-    @Getter
-    private Map<String,Edge> edgeMap = new HashMap<>();
-
-    /**
-     * the timeUnit
+     * the lockTimeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
     /**
-     * the get lock time
+     * lock
      */
-    protected long time = 60000;
+    protected Lock lock = ComponentFactory.getLock(String.format("%s_%s",this.hashCode(), UUID.randomUUID()));
 
     /**
-     * get lock
+     * the get lock lockTime
      */
-    protected Lock lock = ComponentFactory.getLock(getLockKey());
+    protected long time = 60000;
 
     /**
      * default create method
@@ -66,83 +60,27 @@ public class DAG {
      * default constructor
      */
     private DAG(){
+        init();
     }
 
-    /**
-     * 设置开始node
-     * @param abstractNode end abstractNode
-     * @return
-     */
-    public DAG withStartNode(AbstractNode abstractNode) throws InterruptedException {
-        this.startAbstractNode = abstractNode;
-        return addNodes(abstractNode);
+    private void init(){
+        this.nodes = new ConcurrentHashMap<>();
+        this.edges = new ConcurrentHashMap<>();
     }
 
-    /**
-     * 设置结束node
-     * @param abstractNode start abstractNode
-     * @return
-     */
-    public DAG withEndNode(AbstractNode abstractNode) throws InterruptedException {
-        this.endAbstractNode = abstractNode;
-        return addNodes(abstractNode);
-    }
-
-    /**
-     * add abstractNodes to diagram
-     * @param abstractNodes abstractNodes
-     * @return
-     */
-    private DAG addNodes(List<AbstractNode> abstractNodes) throws InterruptedException {
-        try{
-            if (lock.tryLock(time,timeUnit)){
-                abstractNodes.stream().forEach(node -> {
-                    if (!nodeMap.containsKey(node.getId())){
-                        nodeMap.put(node.getId(),node);
-                    }
-                });
-            }
-        }finally {
-            if (lock != null){
-                lock.unlock();
-            }
-        }
-        return this;
-    }
-    /**
-     * add abstractNodes to diagram
-     * @param abstractNodes abstractNodes
-     * @return
-     */
-    private DAG addNodes(AbstractNode... abstractNodes) throws InterruptedException {
-        return addNodes(Arrays.asList(abstractNodes));
-    }
     /**
      * add abstractNodes to diagram
      * @param edges edges
      * @return
      */
-    public synchronized DAG addEdges(List<Edge> edges) throws InterruptedException {
-        try{
-            if (lock.tryLock(time,timeUnit)){
-                edges.stream().forEach(edge -> {
-                    if (!edgeMap.containsKey(edge.getId())){
-                        edgeMap.put(edge.getId(),edge);
-                        try {
-                            addNodes(edge.getSource(),edge.getTarget());
-                            edge.getSource().addChildren(edge.getTarget());
-                            edge.getTarget().addParents(edge.getSource());
-                        } catch (InterruptedException e) {
-                            log.error("lock exception",e);
-                        }
-                    }
-                });
-            }
-        }finally {
-            if (lock != null){
-                lock.unlock();
-            }
-        }
+    public synchronized DAG addEdges(Collection<Edge> edges){
+        edges.stream().forEach(edge -> {
+            this.nodes.putIfAbsent(edge.getSource().getId(),edge.getSource());
+            this.nodes.putIfAbsent(edge.getTarget().getId(),edge.getTarget());
+            edge.getSource().addChildren(edge.getTarget());
+            edge.getTarget().addParents(edge.getSource());
+            this.edges.putIfAbsent(edge.getId(),edge);
+        });
         return this;
     }
 
@@ -151,52 +89,65 @@ public class DAG {
      * @param edges edges
      * @return
      */
-    public DAG addEdges(Edge... edges) throws InterruptedException {
+    public DAG addEdges(Edge... edges){
         return addEdges(Arrays.asList(edges));
     }
+
+//    /**
+//     * destroy node
+//     * @param node node
+//     * @return this
+//     */
+//    public DAG destroyNode(AbstractNode node){
+//        log.info("destroy = " + node.getId());
+//        this.nodes.remove(node);
+//        this.edges.stream().filter(edge -> edge.getSource().equals(node) || edge.getTarget().equals(node)).forEach(edge -> {
+//            this.edges.remove(edge);
+//        });
+//        node.destroy();
+//        return this;
+//    }
 
     /**
      * show diagram
      */
     public String show(){
-        return getStartAbstractNode().show();
+        StringBuilder result = new StringBuilder();
+        getStartNode().stream().forEach(node -> result.append("[ ").append(node.show()).append( " ]"));
+        return result.toString();
     }
 
     /**
-     * get start abstractNode
-     * @return start abstractNode
+     * get start node
+     * @return start node
      */
-    public AbstractNode getStartAbstractNode() {
-        if (startAbstractNode == null){
-            for(AbstractNode abstractNode : nodeMap.values()){
-                if (ListUtil.isEmpty(abstractNode.getParents())){
-                    return startAbstractNode = abstractNode;
+    public Collection<AbstractNode> getStartNode() {
+        try {
+            if (lock.tryLock(time, timeUnit)) {
+                Collection<AbstractNode> nodes = getNodes();
+                Collection<Edge> edges = getEdges();
+                Collection<AbstractNode> result = nodes.stream().filter(node -> ListUtil.isEmpty(node.getParents())).collect(Collectors.toList());
+                for(AbstractNode node : result) {
+                    edges.stream().filter(edge -> edge.getSource().equals(node) || edge.getTarget().equals(node)).forEach(edge -> this.edges.remove(edge.getId()));
+                    this.nodes.remove(node.getId());
                 }
+                return result;
             }
+        } catch (InterruptedException e) {
+            throw new ConcurrentLockException("try lock failed",e);
+        } finally {
+          if (lock != null){
+              lock.unlock();
+          }
         }
-        return startAbstractNode;
+        return null;
     }
 
-    /**
-     * get end abstractNode
-     * @return end abstractNode
-     */
-    public AbstractNode getEndAbstractNode() {
-        if (endAbstractNode == null){
-            for(AbstractNode abstractNode : nodeMap.values()){
-                if (ListUtil.isEmpty(abstractNode.getChildren())){
-                    return endAbstractNode = abstractNode;
-                }
-            }
-        }
-        return endAbstractNode;
+    public Collection<AbstractNode> getNodes() {
+        return nodes.keySet().stream().map(key -> nodes.get(key)).collect(Collectors.toList());
     }
 
-    /**
-     * lock id
-     * @return lock
-     */
-    protected String getLockKey(){
-        return String.format("%s_%s",this.getClass().getName(), UUID.randomUUID().toString());
+    public Collection<Edge> getEdges() {
+        return edges.keySet().stream().map(key -> edges.get(key)).collect(Collectors.toList());
     }
 }

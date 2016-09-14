@@ -14,7 +14,7 @@ public class StringUtils {
      * @return executive error string
      */
     public static String formatExecutive(IExecutive executive,Object args ,String message){
-        return String.format("%s message = %s args = %s",formatExecutive(executive),message,args.toString());
+        return String.format("%s message = %s args = %s",formatExecutive(executive),message,args == null ? null : args.toString());
     }
 
     /**

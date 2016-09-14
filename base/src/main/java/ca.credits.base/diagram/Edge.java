@@ -24,4 +24,31 @@ public class Edge {
      * the target node
      */
     private AbstractNode target;
+
+    /**
+     * destroy this
+     */
+    public void destroy(){
+        try {
+            this.source.removeChild(target);
+            this.target.removeParent(source);
+        }catch (Exception e){
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Edge node = (Edge) o;
+
+        return id != null ? id.equals(node.id) : node.id == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
+    }
 }

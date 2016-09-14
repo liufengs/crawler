@@ -1,5 +1,6 @@
 package ca.credits.base.diagram;
 
+import ca.credits.base.engine.LoggerWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 
@@ -14,12 +15,12 @@ public class DAGTest {
 
     @Test
     public void test()throws Exception{
-        AbstractNode abstractNode1 = DefaultEventNode.create("1");
-        AbstractNode abstractNode2 = DefaultEventNode.create("2");
-        AbstractNode abstractNode3 = DefaultEventNode.create("3");
-        AbstractNode abstractNode4 = DefaultEventNode.create("4");
-        AbstractNode abstractNode5 = DefaultEventNode.create("5");
-        AbstractNode abstractNode6 = DefaultEventNode.create("6");
+        AbstractNode abstractNode1 = DefaultEventNode.create("1", LoggerWorker.class.getName());
+        AbstractNode abstractNode2 = DefaultEventNode.create("2", LoggerWorker.class.getName());
+        AbstractNode abstractNode3 = DefaultEventNode.create("3", LoggerWorker.class.getName());
+        AbstractNode abstractNode4 = DefaultEventNode.create("4", LoggerWorker.class.getName());
+        AbstractNode abstractNode5 = DefaultEventNode.create("5", LoggerWorker.class.getName());
+        AbstractNode abstractNode6 = DefaultEventNode.create("6", LoggerWorker.class.getName());
 
         Edge edge1 = new Edge("1", abstractNode1, abstractNode2);
         Edge edge2 = new Edge("2", abstractNode1, abstractNode3);
@@ -41,15 +42,15 @@ public class DAGTest {
             add(edge7);
         }};
 
-        DAG dag = DAG.create();
+        DAG dag = DAG.create().addEdges(edges);
 
-        edges.parallelStream().forEach(key -> {
-            try {
-                dag.addEdges(key);
-            }catch (Exception e){
-
-            }
-        });
+//        edges.parallelStream().forEach(key -> {
+//            try {
+//                dag.addEdges(key);
+//            }catch (Exception e){
+//
+//            }
+//        });
 
         AbstractNode task = DefaultTaskNode.create("1",dag);
 

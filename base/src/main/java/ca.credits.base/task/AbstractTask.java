@@ -2,19 +2,21 @@ package ca.credits.base.task;
 
 import ca.credits.base.*;
 import ca.credits.base.concurrent.ICountDownLatch;
-import ca.credits.base.concurrent.StandaloneCountDownLatch;
 import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.base.diagram.*;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.DefaultGateway;
 import ca.credits.base.gateway.IGateway;
+import ca.credits.base.kit.Constants;
+import ca.credits.common.*;
+import ca.credits.common.Properties;
 import lombok.extern.slf4j.Slf4j;
 import parsii.tokenizer.ParseException;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
 
@@ -24,12 +26,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class AbstractTask extends AbstractExecutive implements ITask {
     /**
-     * the timeout,ms
-     */
-    protected long timeout = Long.MAX_VALUE;
-
-    /**
-     * the timeUnit
+     * the lockTimeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
@@ -39,7 +36,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     protected Lock lock = ComponentFactory.getLock(getLockKey());
 
     /**
-     * the get lock time
+     * the get lock lockTime
      */
     protected long time = 60000;
 
@@ -67,26 +64,43 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     public AbstractTask(String activityId,AbstractNode node,IExecutiveManager regulator){
         super(activityId,node,regulator);
         this.countDownLatch = ComponentFactory.tryCountDownLatch(1);
-        this.executiveMap = new HashMap<>();
+        this.executiveMap = new ConcurrentHashMap<>();
     }
 
     @Override
-    public void complete(IExecutive executive, Object args) {
+    public void complete(IExecutive executive, Properties args) {
         /**
-         * if endEvent is not null and endEvent complete, then task is completed
+         * step 1: if executive has child node , then add child node
          */
-        if (isEndEvent(executive)){
-            this.onComplete(this, args);
-        }else if (executive == this){
+        final Collection<AbstractNode> childNodes = getChildNodes(args);
+        if (ListUtil.isNotEmpty(childNodes)){
+            /**
+             * add all child nodes
+             */
+            childNodes.stream().forEach(node -> getNode().getDag().addEdges(
+                    Edge.builder()
+                            .id(String.format("%s.%s.%s",getId(),executive.getId(),executive.incrementAndGet()))
+                            .source(executive.getNode())
+                            .target(node)
+                            .build())
+            );
+        }
+
+        /**
+         * step 2: destroy executive node
+         */
+        destroyExecutive(executive);
+
+        /**
+         * step 3: if dag has not nodes, then complete this task
+         */
+        if (executive == this){
             /**
              * this task is complete
              */
             countDownLatch.countDown();
-        }else {
-            /**
-             * the executive's children can run ?
-             */
-            suggest(executive,null,args);
+        }else if (!runStartNode()){
+            this.onComplete(this, null);
         }
     }
 
@@ -101,20 +115,25 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     }
 
     @Override
-    public void exception(IExecutive executive, Throwable throwable, Object args) {
+    public void exception(IExecutive executive, Throwable throwable, Properties args) {
         /**
-         * if key node throw exception,then this task throw exception
+         * step 1: destroy executive node
          */
-        if (executive.getNode().isKeyNode()){
-            this.onThrowable(this,throwable,args);
-        }else if (executive == this){
+        destroyExecutive(executive);
+
+        /**
+         * step 2: if this exception, then exit
+         */
+        if (executive == this){
             /**
              * this task is exception exit
              */
             countDownLatch.countDown();
-        }else {
-            log.error(String.format("id = %s exception",executive.getId()),throwable);
-            suggest(executive,throwable,args);
+        /**
+         * if key node throw exception,then this task throw exception
+         */
+        }else if (executive.getNode().isKeyNode() || !runStartNode()){
+            this.onThrowable(this,throwable,null);
         }
     }
 
@@ -130,16 +149,9 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         /**
          * step 2: get start node and start node
          */
-
-        IExecutive executive = getIExecutive(getNode().getDag().getStartAbstractNode());
-
-        if (executive == null){
-            return;
-        }
-
         this.onStart(this,null);
 
-        executive.run();
+        runStartNode();
 
         /**
          * step 3: if event task will sync wait node complete
@@ -152,6 +164,32 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     }
 
     /**
+     * run all start node
+     */
+    private boolean runStartNode(){
+        Collection<AbstractNode> startNode = getNode().getDag().getStartNode();
+
+        if (ListUtil.isEmpty(startNode)){
+            return false;
+        }
+
+        AtomicLong tmp = new AtomicLong(0);
+
+        startNode.parallelStream().forEach(node -> {
+            IExecutive executive = getIExecutive(node);
+
+            if (executive == null){
+                tmp.incrementAndGet();
+                return;
+            }
+
+            executive.run();
+        });
+
+        return tmp.get() <= 0;
+    }
+
+    /**
      * waiter
      */
     class Waiter implements Runnable{
@@ -160,10 +198,11 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         public Waiter(IExecutive executive){
             this.executive = executive;
         }
+
         @Override
         public void run() {
             try {
-                countDownLatch.await(timeout, timeUnit);
+                countDownLatch.await(executive.getNode().getTimeout() <= 0 ? time : executive.getNode().getTimeout(), timeUnit);
             } catch (InterruptedException e) {
                 log.error("task InterruptedException", e);
                 executive.onThrowable(executive, e, null);
@@ -200,12 +239,11 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * the next suggest
      * @param executive executive
      * @param throwable throwable
-     * @param args args
      */
-    private void suggest(IExecutive executive,Throwable throwable, Object args){
-        List<AbstractNode> children = executive.getNode().getChildren();
+    private void suggest(IExecutive executive,Throwable throwable){
+        Collection<AbstractNode> children = executive.getNode().getChildren();
         children.parallelStream().forEach(child -> {
-            List<AbstractNode> parents = child.getParents();
+            Collection<AbstractNode> parents = child.getParents();
             for(AbstractNode parent : parents){
                 if (!executiveMap.containsKey(parent.getId()) || !executiveMap.get(parent.getId()).isComplete()){
                     return;
@@ -217,26 +255,81 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
             try {
                 IGateway.GatewaySuggest suggest = gateway.suggest(parentsExecutive);
                 switch (suggest){
-                case NEXT:
-                    childExecutive = getIExecutive(child);
-                    if (childExecutive != null) {
-                        this.next(childExecutive);
-                    }
-                    break;
-                case EXCEPTION:
-                    childExecutive = getIExecutive(child);
-                    if (childExecutive != null) {
-                        childExecutive.onThrowable(childExecutive, throwable, args);
-                    }
-                    break;
+                    case NEXT:
+                        childExecutive = getIExecutive(child);
+                        if (childExecutive != null) {
+                            this.next(childExecutive);
+                        }
+                        break;
+                    case EXCEPTION:
+                        childExecutive = getIExecutive(child);
+                        if (childExecutive != null) {
+                            childExecutive.onThrowable(childExecutive, throwable, null);
+                        }
+                        break;
                 }
             } catch (ParseException e) {
                 childExecutive = getIExecutive(child);
                 if (childExecutive != null) {
-                    childExecutive.onThrowable(childExecutive, e, args);
+                    childExecutive.onThrowable(childExecutive, e, null);
                 }
             }
         } );
+    }
+
+    /**
+     * destroy nodes
+     * @param executive completed executive
+     */
+//    private void destroyNodes(IExecutive executive){
+//        /**
+//         * step 2: get all parents, if parent's children is complete, then destroy parent node
+//         */
+//        Collection<AbstractNode> parents = executive.getNode().getParents();
+//
+//        parents.parallelStream().forEach(parent -> {
+//            Collection<AbstractNode> children = parent.getChildren();
+//
+//            for(AbstractNode child : children){
+//                if (!executiveMap.containsKey(child.getId()) || !executiveMap.get(child.getId()).isComplete()){
+//                    return;
+//                }
+//            }
+//
+//            executiveMap.remove(parent.getId());
+//
+//            getNode().getDag().destroyNode(parent);
+//        });
+//
+//        /**
+//         * step 3: if executive node has not child node, then destroy executive node
+//         */
+//        if (ListUtil.isEmpty(executive.getNode().getChildren())){
+//            executiveMap.remove(executive.getNode().getId());
+//
+//            getNode().getDag().destroyNode(executive.getNode());
+//        }
+//    }
+
+    /**
+     * executive completed
+     * @param executive executive
+     */
+    private void destroyExecutive(IExecutive executive){
+        executiveMap.remove(executive.getNode().getId());
+        executive.getNode().destroy();
+    }
+
+    /**
+     * get child nodes
+     * @param args result
+     * @return collection
+     */
+    private Collection<AbstractNode> getChildNodes(Properties args){
+        if (args != null){
+            return args.getCollection(Constants.childNodes);
+        }
+        return null;
     }
 
     /**
@@ -269,12 +362,12 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     }
 
     /**
-     * executive is end event
-     * @param executive executive
-     * @return
+     * can complete this task
+     * @return can complete then true, or not false
      */
-    private boolean isEndEvent(IExecutive executive){
-        return getNode().getDag().getEndAbstractNode() != null && executive.getId().equals(getNode().getDag().getEndAbstractNode().getId());
+    private boolean canComplete(){
+        return ListUtil.isEmpty(getNode().getDag().getNodes())
+                || (getNode().getDag().getNodes().size() == 1);
     }
 
     /**

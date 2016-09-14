@@ -8,7 +8,7 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
  * Created by chenwen on 16/8/29.
  */
 public class BeansFactory {
-    private static ApplicationContext context = new ClassPathXmlApplicationContext("*-beans.xml");
+    private static ApplicationContext context = new ClassPathXmlApplicationContext("classpath*:*-beans.xml");
 
     public static ApplicationContext getContext() {
         return context;

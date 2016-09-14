@@ -1,69 +1,67 @@
 package ca.credits.base.diagram;
 
-import ca.credits.base.ComponentFactory;
 import ca.credits.base.IExecutive;
-import ca.credits.base.concurrent.ConcurrentLockException;
-import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.common.ListUtil;
+import ca.credits.common.Properties;
 import lombok.Data;
+import lombok.Getter;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Created by chenwen on 16/9/1.
  * this class is the node of event stream
  */
-@Data
 public abstract class AbstractNode {
     /**
      * the node id
      */
+    @Getter
     private String id;
 
     /**
      * the node name
      */
+    @Getter
     private String name;
 
     /**
      * the node gateway
      */
+    @Getter
     private String gateway;
+
+    /**
+     * the timeout , time unit , ms
+     */
+    @Getter
+    private long timeout;
 
     /**
      * the children nodes
      */
-    private List<AbstractNode> children;
+    private Map<String,AbstractNode> children;
 
     /**
      * the parents nodes
      */
-    private List<AbstractNode> parents;
+    private Map<String,AbstractNode> parents;
+
+    /**
+     * the properties
+     */
+    @Getter
+    private Properties properties;
 
     /**
      * is key node
      */
+    @Getter
     private boolean isKeyNode;
-
-    /**
-     * the timeUnit
-     */
-    protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
-
-    /**
-     * the get lock time
-     */
-    protected long time = 60000;
-
-    /**
-     * get lock
-     */
-    protected Lock lock = ComponentFactory.getLock(getLockKey());
 
     /**
      * the default is not key node
@@ -76,22 +74,28 @@ public abstract class AbstractNode {
     protected AbstractNode(String id,boolean isKeyNode){
         this.id = id;
         this.isKeyNode = isKeyNode;
-        children = new ArrayList<>();
-        parents = new ArrayList<>();
+        children = new ConcurrentHashMap<>();
+        parents = new ConcurrentHashMap<>();
+        properties = new Properties();
     }
 
-    public AbstractNode withName(String name){
+    public AbstractNode name(String name){
         this.name = name;
         return this;
     }
 
-    public AbstractNode withGateway(String gateway){
+    public AbstractNode gateway(String gateway){
         this.gateway = gateway;
         return this;
     }
 
-    public AbstractNode withKeyNode(boolean isKeyNode){
+    public AbstractNode keyNode(boolean isKeyNode){
         this.isKeyNode = isKeyNode;
+        return this;
+    }
+
+    public AbstractNode timeout(long timeout){
+        this.timeout = timeout;
         return this;
     }
 
@@ -100,7 +104,7 @@ public abstract class AbstractNode {
      * @param children children
      * @return
      */
-    public AbstractNode addChildren(AbstractNode... children) throws ConcurrentLockException,TryLockTimeoutException {
+    public AbstractNode addChildren(AbstractNode... children){
         return addChildren(Arrays.asList(children));
     }
 
@@ -109,7 +113,7 @@ public abstract class AbstractNode {
      * @param parents parents
      * @return
      */
-    public AbstractNode addParents(AbstractNode... parents) throws ConcurrentLockException,TryLockTimeoutException {
+    public AbstractNode addParents(AbstractNode... parents){
         return addParents(Arrays.asList(parents));
     }
 
@@ -118,22 +122,8 @@ public abstract class AbstractNode {
      * @param children children
      * @return
      */
-    public AbstractNode addChildren(List<AbstractNode> children) throws ConcurrentLockException,TryLockTimeoutException {
-        try{
-            try {
-                if (lock.tryLock(time,timeUnit)){
-                    this.children.addAll(children);
-                }else {
-                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
-                }
-            } catch (InterruptedException e) {
-                throw new ConcurrentLockException("try lock failed",e);
-            }
-        }finally {
-            if (lock != null){
-                lock.unlock();
-            }
-        }
+    public AbstractNode addChildren(Collection<AbstractNode> children){
+        children.stream().forEach(node -> this.children.putIfAbsent(node.getId(),node));
         return this;
     }
 
@@ -142,23 +132,39 @@ public abstract class AbstractNode {
      * @param parents parents
      * @return
      */
-    public synchronized AbstractNode addParents(List<AbstractNode> parents) throws ConcurrentLockException,TryLockTimeoutException {
-        try{
-            try {
-                if (lock.tryLock(time,timeUnit)){
-                    this.parents.addAll(parents);
-                }else {
-                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
-                }
-            } catch (InterruptedException e) {
-                throw new ConcurrentLockException("try lock failed",e);
-            }
-        }finally {
-            if (lock != null){
-                lock.unlock();
-            }
-        }
+    public AbstractNode addParents(Collection<AbstractNode> parents){
+        parents.stream().forEach(node -> this.parents.putIfAbsent(node.getId(),node));
         return this;
+    }
+
+    /**
+     * remove node
+     * @param node removed node
+     */
+    public void removeParent(AbstractNode node){
+        this.parents.remove(node.getId());
+    }
+
+    /**
+     * remove node
+     * @param node removed node
+     */
+    public void removeChild(AbstractNode node){
+        this.children.remove(node.getId());
+    }
+
+    /**
+     * node destroy
+     */
+    public void destroy(){
+        try {
+            this.children.keySet().stream().map(key -> this.children.get(key)).forEach(node -> node.removeParent(this));
+            this.parents.keySet().stream().map(key -> this.parents.get(key)).forEach(node -> node.removeChild(this));
+            this.children = null;
+            this.parents = null;
+            this.properties = null;
+        }catch (Exception e){
+        }
     }
 
     /**
@@ -171,14 +177,17 @@ public abstract class AbstractNode {
      * @return show
      */
     public String show(){
-        if (ListUtil.isEmpty(children)){
+        if (children == null || ListUtil.isEmpty(children.keySet())){
             return getId();
         }
 
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("( ").append(children.get(0).show());
-        children.stream().filter(child -> child != children.get(0)).forEach(child -> {
-            stringBuilder.append(" , ").append(child.show());
+        children.keySet().stream().map(key -> this.children.get(key)).forEach(child -> {
+            if (stringBuilder.length() == 0){
+                stringBuilder.append("( ").append(child.show());
+            }else {
+                stringBuilder.append(" , ").append(child.show());
+            }
         });
         stringBuilder.append(" )");
 
@@ -186,10 +195,34 @@ public abstract class AbstractNode {
     }
 
     /**
-     * lock id
-     * @return lock
+     * add property
      */
-    protected String getLockKey(){
-        return String.format("%s_%s_%s",this.getClass().getName(),getId(), UUID.randomUUID().toString());
+    public AbstractNode property(String key,Object value){
+        properties.put(key,value);
+        return this;
+    }
+
+    public Collection<AbstractNode> getChildren() {
+        return children.keySet().stream().map(key -> this.children.get(key)).collect(Collectors.toList());
+    }
+
+    public Collection<AbstractNode> getParents() {
+        return parents.keySet().stream().map(key -> this.parents.get(key)).collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AbstractNode node = (AbstractNode) o;
+
+        return id != null ? id.equals(node.id) : node.id == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        return id != null ? id.hashCode() : 0;
     }
 }

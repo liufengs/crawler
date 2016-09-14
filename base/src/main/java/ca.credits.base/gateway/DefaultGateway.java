@@ -41,7 +41,7 @@ public class DefaultGateway implements IGateway {
          * 没有父节点(要么是StartEvent,要么是当前正在执行的根Task)
          */
         if (ListUtil.isEmpty(parents)){
-            return GatewaySuggest.UNDO;
+            return GatewaySuggest.NEXT;
         }
 
         if (gateway == null || gateway.length() == 0){

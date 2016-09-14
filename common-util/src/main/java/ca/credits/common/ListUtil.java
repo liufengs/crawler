@@ -1,5 +1,6 @@
 package ca.credits.common;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -7,11 +8,11 @@ import java.util.List;
  */
 public class ListUtil {
 
-    public static boolean isEmpty(List list){
+    public static boolean isEmpty(Collection list){
         return list == null || list.size() == 0;
     }
 
-    public static boolean isNotEmpty(List list){
+    public static boolean isNotEmpty(Collection list){
         return !isEmpty(list);
     }
 }

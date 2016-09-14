@@ -1,19 +1,18 @@
 package ca.credits.base;
 
 import ca.credits.base.diagram.AbstractNode;
-import ca.credits.base.diagram.AbstractTaskNode;
 import ca.credits.base.event.IEvent;
-import ca.credits.base.gateway.IGateway;
+import ca.credits.base.kit.Constants;
 import ca.credits.base.task.ITask;
 import ca.credits.base.util.StringUtils;
 import ca.credits.common.ListUtil;
+import ca.credits.common.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by chenwen on 16/8/26.
@@ -62,6 +61,11 @@ public abstract class AbstractExecutive implements IExecutive {
     protected Throwable throwable;
 
     /**
+     * child no
+     */
+    protected AtomicLong childNo;
+
+    /**
      * the default constructor
      */
     public AbstractExecutive(String activityId, AbstractNode node, IExecutiveManager regulator){
@@ -70,6 +74,7 @@ public abstract class AbstractExecutive implements IExecutive {
         this.node = node;
         this.activityId = activityId;
         this.regulator = regulator;
+        this.childNo = new AtomicLong(0);
     }
 
     /**
@@ -78,7 +83,7 @@ public abstract class AbstractExecutive implements IExecutive {
      * @param args event args
      */
     @Override
-    public void onStart(final ISubject subject, final Object args) {
+    public void onStart(final ISubject subject, final Properties args) {
         if (log.isDebugEnabled()){
             log.debug(StringUtils.formatExecutive((IExecutive) subject,args,"start run"));
         }
@@ -97,7 +102,7 @@ public abstract class AbstractExecutive implements IExecutive {
      * @param args args
      */
     @Override
-    public void onComplete(ISubject subject, Object args) {
+    public void onComplete(ISubject subject, Properties args) {
         if (log.isDebugEnabled()){
             log.debug(StringUtils.formatExecutive((IExecutive) subject,args,"success complete"));
         }
@@ -121,7 +126,7 @@ public abstract class AbstractExecutive implements IExecutive {
      * @param args args
      */
     @Override
-    public void onThrowable(ISubject subject, Throwable throwable, Object args) {
+    public void onThrowable(ISubject subject, Throwable throwable, Properties args) {
         log.error(StringUtils.formatExecutive((IExecutive) subject,args,"exec throw exception"),throwable);
         this.throwable = throwable;
         status.set(Status.EXCEPTION.ordinal());
@@ -188,5 +193,10 @@ public abstract class AbstractExecutive implements IExecutive {
     @Override
     public boolean isComplete() {
         return getStatus() == Status.EXCEPTION || getStatus() == Status.DONE;
+    }
+
+    @Override
+    public long incrementAndGet() {
+        return childNo.incrementAndGet();
     }
 }

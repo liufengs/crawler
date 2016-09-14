@@ -43,9 +43,15 @@ public interface IExecutive extends ISubject,IListener{
 
     /**
      * executive is complete
-     * @return
+     * @return is exec completed
      */
     boolean isComplete();
+
+    /**
+     * get child id no
+     * @return id no
+     */
+    long incrementAndGet();
 
     /**
      * regulator status

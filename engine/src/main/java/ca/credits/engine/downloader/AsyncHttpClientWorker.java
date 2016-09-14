@@ -2,11 +2,16 @@ package ca.credits.engine.downloader;
 
 import ca.credits.base.engine.AbstractWorker;
 import ca.credits.base.engine.IWorkerManager;
+import ca.credits.base.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.asynchttpclient.*;
+
+import java.nio.charset.Charset;
 
 /**
  * Created by chenwen on 16/8/31.
  */
+@Slf4j
 public class AsyncHttpClientWorker extends AbstractWorker<AsyncHttpClientRequest> {
     private AsyncHttpClient asyncHttpClient = new DefaultAsyncHttpClient();
     /**
@@ -32,7 +37,9 @@ public class AsyncHttpClientWorker extends AbstractWorker<AsyncHttpClientRequest
         asyncHttpClient.executeRequest(task.getRequest(), new AsyncCompletionHandler<Response>(){
             @Override
             public Response onCompleted(Response response) throws Exception{
-                task.getListener().onComplete(task.getListener(),new AsyncHttpClientResponse(task.getListener(),task,response));
+                log.info(StringUtils.formatExecutive(task.getListener(),response.getResponseBody(Charset.defaultCharset())));
+//                task.getListener().onComplete(task.getListener(),new AsyncHttpClientResponse(task.getListener(),task,response));
+                task.getListener().onComplete(task.getListener(),null);
                 return response;
             }
 
