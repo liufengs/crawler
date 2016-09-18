@@ -11,7 +11,7 @@ public interface IWorkerManager<T> extends IBalance{
      * poll event
      * @return event
      */
-    T take(AbstractWorker worker) throws InterruptedException;
+    T take() throws InterruptedException;
 
     /**
      * add event

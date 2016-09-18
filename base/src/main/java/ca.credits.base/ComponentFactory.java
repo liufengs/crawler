@@ -2,6 +2,7 @@ package ca.credits.base;
 
 import ca.credits.base.concurrent.ICountDownLatch;
 import ca.credits.base.concurrent.StandaloneCountDownLatch;
+import ca.credits.base.config.CrawlerConfigDefaults;
 import ca.credits.base.queue.IQueue;
 import ca.credits.base.queue.StandaloneQueue;
 
@@ -16,7 +17,7 @@ public class ComponentFactory {
     /**
      * is or not distribute
      */
-    public static final boolean distribute = false;
+    public static final boolean distribute = CrawlerConfigDefaults.defaultDistribute();
 
     /**
      * get lock

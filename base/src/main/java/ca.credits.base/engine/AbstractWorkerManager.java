@@ -26,7 +26,7 @@ public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implemen
     protected long timeout = Long.MAX_VALUE;
 
     /**
-     * the timeUnit
+     * the lockTimeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
@@ -165,7 +165,7 @@ public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implemen
                 if (getLeastWorkerCount() >= count) {
                     for (int i = 0; i < count; ++i) {
                         if (getLeastWorkerCount() > 0) {
-                            workers.remove(0);
+                            workers.get(0).shutdown();
                         }
                     }
                 }
@@ -187,7 +187,7 @@ public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implemen
      * @throws InterruptedException exception
      */
     @Override
-    public T take(AbstractWorker worker) throws InterruptedException {
+    public T take() throws InterruptedException {
         return queue.take();
     }
 }

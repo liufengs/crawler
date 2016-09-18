@@ -2,18 +2,23 @@ package ca.credits.base.task;
 
 import ca.credits.base.*;
 import ca.credits.base.concurrent.ICountDownLatch;
-import ca.credits.base.concurrent.StandaloneCountDownLatch;
 import ca.credits.base.concurrent.TryLockTimeoutException;
-import ca.credits.base.diagram.*;
+import ca.credits.base.diagram.AbstractNode;
+import ca.credits.base.diagram.AbstractTaskNode;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.DefaultGateway;
 import ca.credits.base.gateway.IGateway;
+import ca.credits.base.kit.Constants;
+import ca.credits.common.ListUtil;
+import ca.credits.common.Properties;
 import lombok.extern.slf4j.Slf4j;
 import parsii.tokenizer.ParseException;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Collectors;
@@ -24,12 +29,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class AbstractTask extends AbstractExecutive implements ITask {
     /**
-     * the timeout,ms
-     */
-    protected long timeout = Long.MAX_VALUE;
-
-    /**
-     * the timeUnit
+     * the lockTimeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
@@ -39,7 +39,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     protected Lock lock = ComponentFactory.getLock(getLockKey());
 
     /**
-     * the get lock time
+     * the get lock lockTime
      */
     protected long time = 60000;
 
@@ -58,35 +58,75 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      */
     protected Map<String,IExecutive> executiveMap;
 
+    protected Map<String,IExecutive> dynamicExecutiveMap;
+
     /**
      * 计数器,当计数器大于0时,将会阻塞.
      */
     private ICountDownLatch countDownLatch;
 
+    /**
+     * end event is completed
+     */
+    private boolean isCompletedEndEvent = false;
+
 
     public AbstractTask(String activityId,AbstractNode node,IExecutiveManager regulator){
         super(activityId,node,regulator);
         this.countDownLatch = ComponentFactory.tryCountDownLatch(1);
-        this.executiveMap = new HashMap<>();
+        this.executiveMap = new ConcurrentHashMap<>();
+        this.dynamicExecutiveMap = new ConcurrentHashMap<>();
     }
 
     @Override
-    public void complete(IExecutive executive, Object args) {
+    public void complete(IExecutive executive, Properties args) {
+        Collection<AbstractNode> dynamicNodes = args != null && args.containsKey(Constants.DYNAMIC_NODES) ? args.getCollection(Constants.DYNAMIC_NODES) : null;
+
+        if (ListUtil.isNotEmpty(dynamicNodes)){
+            dynamicNodes.parallelStream().forEach(node -> {
+                IExecutive nodeExecutive = getIExecutive(node,dynamicExecutiveMap);
+
+                if (nodeExecutive == null){
+                    return;
+                }
+
+                nodeExecutive.run();
+            });
+        }
+
         /**
-         * if endEvent is not null and endEvent complete, then task is completed
+         * delete current executive
          */
-        if (isEndEvent(executive)){
-            this.onComplete(this, args);
-        }else if (executive == this){
-            /**
-             * this task is complete
-             */
-            countDownLatch.countDown();
+        if (dynamicExecutiveMap.containsKey(executive.getId())) {
+            dynamicExecutiveMap.remove(executive.getId());
+            if (isCompletedEndEvent && dynamicExecutiveMap.size() == 0) {
+                this.onComplete(this, args);
+            }
         }else {
             /**
-             * the executive's children can run ?
+             * if endEvent is not null and endEvent complete, then task is completed
              */
-            suggest(executive,null,args);
+            if (isEndEvent(executive)){
+                isCompletedEndEvent  = true;
+            }
+            /**
+             * end event is completed
+             */
+            if (executive == this) {
+                /**
+                 * this task is complete
+                 */
+                countDownLatch.countDown();
+            }else if (isCompletedEndEvent) {
+                if (dynamicExecutiveMap.size() == 0) {
+                    this.onComplete(this,null);
+                }
+            } else {
+                /**
+                 * the executive's children can run ?
+                 */
+                suggest(executive, null, null);
+            }
         }
     }
 
@@ -101,20 +141,27 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
     }
 
     @Override
-    public void exception(IExecutive executive, Throwable throwable, Object args) {
+    public void exception(IExecutive executive, Throwable throwable, Properties args) {
         /**
-         * if key node throw exception,then this task throw exception
+         * delete current executive
          */
-        if (executive.getNode().isKeyNode()){
-            this.onThrowable(this,throwable,args);
-        }else if (executive == this){
-            /**
-             * this task is exception exit
-             */
-            countDownLatch.countDown();
+        if (dynamicExecutiveMap.containsKey(executive.getId())) {
+            dynamicExecutiveMap.remove(executive.getId());
         }else {
-            log.error(String.format("id = %s exception",executive.getId()),throwable);
-            suggest(executive,throwable,args);
+            /**
+             * if key node throw exception,then this task throw exception
+             */
+            if (executive.getNode().isKeyNode()) {
+                this.onThrowable(this, throwable, args);
+            } else if (executive == this) {
+                /**
+                 * this task is exception exit
+                 */
+                countDownLatch.countDown();
+            } else {
+                log.error(String.format("id = %s exception", executive.getId()), throwable);
+                suggest(executive, throwable, args);
+            }
         }
     }
 
@@ -131,7 +178,7 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
          * step 2: get start node and start node
          */
 
-        IExecutive executive = getIExecutive(getNode().getDag().getStartAbstractNode());
+        IExecutive executive = getIExecutive(getNode().getDag().getStartAbstractNode(),executiveMap);
 
         if (executive == null){
             return;
@@ -160,10 +207,11 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
         public Waiter(IExecutive executive){
             this.executive = executive;
         }
+
         @Override
         public void run() {
             try {
-                countDownLatch.await(timeout, timeUnit);
+                countDownLatch.await(executive.getNode().getTimeout() <= 0 ? time : executive.getNode().getTimeout(), timeUnit);
             } catch (InterruptedException e) {
                 log.error("task InterruptedException", e);
                 executive.onThrowable(executive, e, null);
@@ -200,12 +248,11 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * the next suggest
      * @param executive executive
      * @param throwable throwable
-     * @param args args
      */
-    private void suggest(IExecutive executive,Throwable throwable, Object args){
-        List<AbstractNode> children = executive.getNode().getChildren();
+    private void suggest(IExecutive executive,Throwable throwable,Properties args){
+        Collection<AbstractNode> children = executive.getNode().getChildren();
         children.parallelStream().forEach(child -> {
-            List<AbstractNode> parents = child.getParents();
+            Collection<AbstractNode> parents = child.getParents();
             for(AbstractNode parent : parents){
                 if (!executiveMap.containsKey(parent.getId()) || !executiveMap.get(parent.getId()).isComplete()){
                     return;
@@ -217,21 +264,21 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
             try {
                 IGateway.GatewaySuggest suggest = gateway.suggest(parentsExecutive);
                 switch (suggest){
-                case NEXT:
-                    childExecutive = getIExecutive(child);
-                    if (childExecutive != null) {
-                        this.next(childExecutive);
-                    }
-                    break;
-                case EXCEPTION:
-                    childExecutive = getIExecutive(child);
-                    if (childExecutive != null) {
-                        childExecutive.onThrowable(childExecutive, throwable, args);
-                    }
-                    break;
+                    case NEXT:
+                        childExecutive = getIExecutive(child,executiveMap);
+                        if (childExecutive != null) {
+                            this.next(childExecutive);
+                        }
+                        break;
+                    case EXCEPTION:
+                        childExecutive = getIExecutive(child,executiveMap);
+                        if (childExecutive != null) {
+                            childExecutive.onThrowable(childExecutive, throwable, args);
+                        }
+                        break;
                 }
             } catch (ParseException e) {
-                childExecutive = getIExecutive(child);
+                childExecutive = getIExecutive(child,executiveMap);
                 if (childExecutive != null) {
                     childExecutive.onThrowable(childExecutive, e, args);
                 }
@@ -244,15 +291,15 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * @param node node
      * @return executive
      */
-    private IExecutive getIExecutive(AbstractNode node){
+    private IExecutive getIExecutive(AbstractNode node,Map<String,IExecutive> map){
         try {
             if (lock.tryLock(time,timeUnit)) {
-                if (executiveMap.containsKey(node.getId())) {
+                if (map.containsKey(node.getId())) {
                     return null;
                 }
                 IExecutive result = ExecutiveFactory.createExecutive(node, activityId, this);
                 if (result != null) {
-                    executiveMap.put(node.getId(), result);
+                    map.put(node.getId(), result);
                 }
                 return result;
             }else {
@@ -282,6 +329,6 @@ public abstract class AbstractTask extends AbstractExecutive implements ITask {
      * @return lock key
      */
     private String getLockKey(){
-        return String.format("%s_%s_%s_%s",this.getClass().getName() ,activityId, getId(), UUID.randomUUID().toString());
+        return String.format("%s_%s_%s_%s",this.hashCode() , activityId, getId(), UUID.randomUUID().toString());
     }
 }

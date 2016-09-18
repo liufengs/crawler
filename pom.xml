@@ -15,6 +15,7 @@
         <module>configuration</module>
         <module>common-util</module>
         <module>base</module>
+        <module>extension</module>
     </modules>
 
     <packaging>pom</packaging>

@@ -1,6 +1,6 @@
 package ca.credits.base.engine;
 
-import ca.credits.base.event.LoggerEvent;
+import ca.credits.base.event.DefaultEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StopWatch;
 
@@ -8,18 +8,18 @@ import org.springframework.util.StopWatch;
  * Created by chenwen on 16/8/30.
  */
 @Slf4j
-public class LoggerWorker extends AbstractWorker<LoggerEvent> {
+public class LoggerWorker extends AbstractWorker<DefaultEvent> {
     /**
      * create worker with workerManager
      *
      * @param workerManager workManager
      */
-    public LoggerWorker(IWorkerManager<LoggerEvent> workerManager) {
+    public LoggerWorker(IWorkerManager<DefaultEvent> workerManager) {
         super(workerManager);
     }
 
     @Override
-    protected void doWork(LoggerEvent task) {
+    protected void doWork(DefaultEvent task) {
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
 //        log.info(String.format("start run event activityId = %s, taskId = %s, id = %s", task.getActivityId(), task.getTaskId(), task.getId()));

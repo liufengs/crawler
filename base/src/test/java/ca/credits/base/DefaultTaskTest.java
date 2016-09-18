@@ -1,6 +1,7 @@
 package ca.credits.base;
 
 import ca.credits.base.diagram.*;
+import ca.credits.base.engine.LoggerWorker;
 import ca.credits.base.task.DefaultTask;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
@@ -57,24 +58,24 @@ public class DefaultTaskTest{
         /**
          * create task1 nodes
          */
-        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent");
-        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1");
-        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent");
+        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent", LoggerWorker.class.getName());
+        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1", LoggerWorker.class.getName());
+        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent", LoggerWorker.class.getName());
 
         /**
          * create task2 nodes
          */
-        AbstractNode task2StartEvent = DefaultEventNode.create("task2.startEvent");
-        AbstractNode task2Event1 = DefaultEventNode.create("task2.event1");
-        AbstractNode task2EndEvent = DefaultEventNode.create("task2.endEvent");
+        AbstractNode task2StartEvent = DefaultEventNode.create("task2.startEvent", LoggerWorker.class.getName());
+        AbstractNode task2Event1 = DefaultEventNode.create("task2.event1", LoggerWorker.class.getName());
+        AbstractNode task2EndEvent = DefaultEventNode.create("task2.endEvent", LoggerWorker.class.getName());
 
 
         /**
          * create task3 nodes
          */
-        AbstractNode task3StartEvent = DefaultEventNode.create("task3.startEvent");
-        AbstractNode task3Event1 = DefaultEventNode.create("task3.event1");
-        AbstractNode task3EndEvent = DefaultEventNode.create("task3.endEvent");
+        AbstractNode task3StartEvent = DefaultEventNode.create("task3.startEvent", LoggerWorker.class.getName());
+        AbstractNode task3Event1 = DefaultEventNode.create("task3.event1", LoggerWorker.class.getName());
+        AbstractNode task3EndEvent = DefaultEventNode.create("task3.endEvent", LoggerWorker.class.getName());
 
         /**
          * create task2 edges
@@ -142,11 +143,11 @@ public class DefaultTaskTest{
         /**
          * create task1 nodes
          */
-        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent");
-        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1");
-        AbstractNode task1Event2 = DefaultEventNode.create("task1.event2");
-        AbstractNode task1Event3 = DefaultEventNode.create("task1.event3");
-        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent");
+        AbstractNode task1StartEvent = DefaultEventNode.create("task1.startEvent", LoggerWorker.class.getName());
+        AbstractNode task1Event1 = DefaultEventNode.create("task1.event1", LoggerWorker.class.getName());
+        AbstractNode task1Event2 = DefaultEventNode.create("task1.event2", LoggerWorker.class.getName());
+        AbstractNode task1Event3 = DefaultEventNode.create("task1.event3", LoggerWorker.class.getName());
+        AbstractNode task1EndEvent = DefaultEventNode.create("task1.endEvent", LoggerWorker.class.getName());
 
         /**
          * create task1 edges
@@ -163,13 +164,5 @@ public class DefaultTaskTest{
         IExecutive executive = new DefaultTask("testConcurrentLoggerEngine",task1,null);
 
         executive.run();
-
-        Lock lock = new ReentrantLock();
-
-        lock.lock();
-
-        log.info("hello");
-
-        lock.unlock();
     }
 }

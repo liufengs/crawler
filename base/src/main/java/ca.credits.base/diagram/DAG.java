@@ -40,12 +40,12 @@ public class DAG {
     private Map<String,Edge> edgeMap = new HashMap<>();
 
     /**
-     * the timeUnit
+     * the lockTimeUnit
      */
     protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
 
     /**
-     * the get lock time
+     * the get lock lockTime
      */
     protected long time = 60000;
 
@@ -170,6 +170,7 @@ public class DAG {
         if (startAbstractNode == null){
             for(AbstractNode abstractNode : nodeMap.values()){
                 if (ListUtil.isEmpty(abstractNode.getParents())){
+                    abstractNode.keyNode(true);
                     return startAbstractNode = abstractNode;
                 }
             }
@@ -185,6 +186,7 @@ public class DAG {
         if (endAbstractNode == null){
             for(AbstractNode abstractNode : nodeMap.values()){
                 if (ListUtil.isEmpty(abstractNode.getChildren())){
+                    abstractNode.keyNode(true);
                     return endAbstractNode = abstractNode;
                 }
             }

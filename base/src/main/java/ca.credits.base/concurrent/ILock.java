@@ -8,15 +8,15 @@ import java.util.concurrent.TimeUnit;
 public interface ILock {
     /**
      * start lock
-     * @param time lock time
+     * @param time lock lockTime
      * @param timeUnit lock unit
      */
     void lock(long time, TimeUnit timeUnit);
 
     /**
      * try get lock
-     * @param time get lock time
-     * @param unit get lock time unit
+     * @param time get lock lockTime
+     * @param unit get lock lockTime unit
      * @return is or not get lock
      * @throws InterruptedException
      */

@@ -5,6 +5,8 @@ import ca.credits.base.IExecutive;
 import ca.credits.base.concurrent.ConcurrentLockException;
 import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.common.ListUtil;
+import ca.credits.common.Properties;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -36,6 +38,11 @@ public abstract class AbstractNode {
     private String gateway;
 
     /**
+     * the timeout , time unit , ms
+     */
+    private long timeout;
+
+    /**
      * the children nodes
      */
     private List<AbstractNode> children;
@@ -46,19 +53,24 @@ public abstract class AbstractNode {
     private List<AbstractNode> parents;
 
     /**
+     * the properties
+     */
+    private Properties properties;
+
+    /**
      * is key node
      */
     private boolean isKeyNode;
 
     /**
-     * the timeUnit
+     * the lockTimeUnit
      */
-    protected TimeUnit timeUnit = TimeUnit.MILLISECONDS;
+    protected TimeUnit lockTimeUnit = TimeUnit.MILLISECONDS;
 
     /**
-     * the get lock time
+     * the get lock lockTime
      */
-    protected long time = 60000;
+    protected long lockTime = 60000;
 
     /**
      * get lock
@@ -78,20 +90,26 @@ public abstract class AbstractNode {
         this.isKeyNode = isKeyNode;
         children = new ArrayList<>();
         parents = new ArrayList<>();
+        properties = new Properties();
     }
 
-    public AbstractNode withName(String name){
+    public AbstractNode name(String name){
         this.name = name;
         return this;
     }
 
-    public AbstractNode withGateway(String gateway){
+    public AbstractNode gateway(String gateway){
         this.gateway = gateway;
         return this;
     }
 
-    public AbstractNode withKeyNode(boolean isKeyNode){
+    public AbstractNode keyNode(boolean isKeyNode){
         this.isKeyNode = isKeyNode;
+        return this;
+    }
+
+    public AbstractNode timeout(long timeout){
+        this.timeout = timeout;
         return this;
     }
 
@@ -121,10 +139,10 @@ public abstract class AbstractNode {
     public AbstractNode addChildren(List<AbstractNode> children) throws ConcurrentLockException,TryLockTimeoutException {
         try{
             try {
-                if (lock.tryLock(time,timeUnit)){
+                if (lock.tryLock(lockTime, lockTimeUnit)){
                     this.children.addAll(children);
                 }else {
-                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
+                    throw new TryLockTimeoutException("try lock timeout", lockTime, lockTimeUnit);
                 }
             } catch (InterruptedException e) {
                 throw new ConcurrentLockException("try lock failed",e);
@@ -145,10 +163,10 @@ public abstract class AbstractNode {
     public synchronized AbstractNode addParents(List<AbstractNode> parents) throws ConcurrentLockException,TryLockTimeoutException {
         try{
             try {
-                if (lock.tryLock(time,timeUnit)){
+                if (lock.tryLock(lockTime, lockTimeUnit)){
                     this.parents.addAll(parents);
                 }else {
-                    throw new TryLockTimeoutException("try lock timeout",time,timeUnit);
+                    throw new TryLockTimeoutException("try lock timeout", lockTime, lockTimeUnit);
                 }
             } catch (InterruptedException e) {
                 throw new ConcurrentLockException("try lock failed",e);
@@ -191,5 +209,13 @@ public abstract class AbstractNode {
      */
     protected String getLockKey(){
         return String.format("%s_%s_%s",this.getClass().getName(),getId(), UUID.randomUUID().toString());
+    }
+
+    /**
+     * add property
+     */
+    public AbstractNode property(String key,Object value){
+        properties.put(key,value);
+        return this;
     }
 }

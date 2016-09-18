@@ -1,5 +1,7 @@
 package ca.credits.base;
 
+import ca.credits.common.Properties;
+
 /**
  * Created by chenwen on 16/8/26.
  */
@@ -7,7 +9,7 @@ public interface IExecutiveManager {
     /**
      * complete
      */
-    void complete(IExecutive executive,Object args);
+    void complete(IExecutive executive, Properties args);
 
     /**
      * exec next point
@@ -21,5 +23,5 @@ public interface IExecutiveManager {
      * @param throwable exception
      * @param args args
      */
-    void exception(IExecutive executive, Throwable throwable, Object args);
+    void exception(IExecutive executive, Throwable throwable, Properties args);
 }
