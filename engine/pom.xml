@@ -26,9 +26,30 @@
     <properties>
         <httpclient.version>4.5.2</httpclient.version>
         <asynchttpclient.version>2.0.14</asynchttpclient.version>
+        <xsoup.version>0.2.4</xsoup.version>
+        <json-path.version>0.8.1</json-path.version>
+        <json.version>1.1.37</json.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>us.codecraft</groupId>
+            <artifactId>xsoup</artifactId>
+            <version>${xsoup.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+            <version>${json-path.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>${json.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>ca</groupId>
             <artifactId>base</artifactId>
@@ -43,6 +64,11 @@
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>${httpclient.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-collections</groupId>
+            <artifactId>commons-collections</artifactId>
+            <version>3.2.1</version>
         </dependency>
     </dependencies>
 

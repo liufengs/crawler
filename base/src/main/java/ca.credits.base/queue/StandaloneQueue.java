@@ -7,7 +7,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Created by chenwen on 16/8/30.
  * 这是一个单机版的queue
  */
-public class StandaloneQueue<T> implements IQueue<T> {
+public class StandaloneQueue<T extends IDuplicateKey> extends AbstractDuplicateRemovedQueue<T> implements IQueue<T> {
     private BlockingQueue<T> queue = new LinkedBlockingQueue<>();
 
     private String name;
@@ -22,11 +22,6 @@ public class StandaloneQueue<T> implements IQueue<T> {
     }
 
     @Override
-    public void put(T t) throws InterruptedException {
-        queue.put(t);
-    }
-
-    @Override
     public int getLeastTask() {
         return queue.size();
     }
@@ -34,5 +29,10 @@ public class StandaloneQueue<T> implements IQueue<T> {
     @Override
     public String getName() {
         return name;
+    }
+
+    @Override
+    public void pushWhenNoDuplicate(T t) {
+        queue.add(t);
     }
 }

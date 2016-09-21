@@ -6,6 +6,7 @@ import ca.credits.base.balance.IBalanceManager;
 import ca.credits.base.concurrent.ConcurrentLockException;
 import ca.credits.base.concurrent.TryLockTimeoutException;
 import ca.credits.base.event.IEvent;
+import ca.credits.base.queue.IDuplicateKey;
 import ca.credits.base.queue.IQueue;
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,7 +20,7 @@ import java.util.concurrent.locks.Lock;
  * Created by chenwen on 16/8/30.
  */
 @Slf4j
-public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implements IWorkerManager<T>{
+public abstract class AbstractWorkerManager<T extends IDuplicateKey,W extends AbstractWorker> implements IWorkerManager<T>{
     /**
      * the timeout,ms
      */
@@ -78,7 +79,7 @@ public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implemen
      * @param event event
      */
     @Override
-    public void add(IEvent event){
+    public boolean add(IEvent event){
         /**
          * step 1: balance manager
          */
@@ -87,14 +88,14 @@ public abstract class AbstractWorkerManager<T,W extends AbstractWorker> implemen
         /**
          * step 2: add manager
          */
-        addTask(event);
+        return addTask(event);
     }
 
     /**
      * add task
      * @param event event
      */
-    protected abstract void addTask(IEvent event);
+    protected abstract boolean addTask(IEvent event);
 
     /**
      * add worker

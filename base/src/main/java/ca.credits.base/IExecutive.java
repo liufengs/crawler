@@ -48,6 +48,11 @@ public interface IExecutive extends ISubject,IListener{
     boolean isComplete();
 
     /**
+     * get child random id
+     */
+    String getRandomChildId();
+
+    /**
      * regulator status
      */
     enum Status{

@@ -1,7 +1,7 @@
 package ca.credits.base.gateway;
 
 import ca.credits.base.IExecutive;
-import ca.credits.common.ListUtil;
+import ca.credits.common.util.ListUtil;
 import lombok.extern.slf4j.Slf4j;
 import parsii.eval.Expression;
 import parsii.eval.Parser;

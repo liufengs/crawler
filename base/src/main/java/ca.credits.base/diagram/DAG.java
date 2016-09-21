@@ -1,7 +1,7 @@
 package ca.credits.base.diagram;
 
 import ca.credits.base.ComponentFactory;
-import ca.credits.common.ListUtil;
+import ca.credits.common.util.ListUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

@@ -39,4 +39,9 @@ public class DefaultTaskNode extends AbstractTaskNode{
     public String toString() {
         return "DefaultTaskNode{}";
     }
+
+    @Override
+    public DefaultEventNode copy() {
+         throw new UnsupportedOperationException("task node can not copy");
+    }
 }

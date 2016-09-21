@@ -7,13 +7,14 @@ import ca.credits.base.IExecutiveManager;
 import ca.credits.base.diagram.AbstractNode;
 import ca.credits.base.engine.IEngine;
 import ca.credits.base.gateway.IGateway;
+import ca.credits.base.queue.IDuplicateKey;
 
 import java.util.List;
 
 /**
  * Created by chenwen on 16/8/26.
  */
-public abstract class AbstractEvent extends AbstractExecutive implements IEvent {
+public abstract class AbstractEvent extends AbstractExecutive implements IEvent,IDuplicateKey {
     protected String workerClassName;
 
     protected AbstractEvent(String workerClassName, String activityId,AbstractNode node,IExecutiveManager regulator){
@@ -29,5 +30,10 @@ public abstract class AbstractEvent extends AbstractExecutive implements IEvent 
     @Override
     public String getWorkerClassName() {
         return workerClassName;
+    }
+
+    @Override
+    public String getDuplicateKey() {
+        return null;
     }
 }

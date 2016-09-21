@@ -3,6 +3,8 @@ package ca.credits.base;
 import ca.credits.base.concurrent.ICountDownLatch;
 import ca.credits.base.concurrent.StandaloneCountDownLatch;
 import ca.credits.base.config.CrawlerConfigDefaults;
+import ca.credits.base.event.IEvent;
+import ca.credits.base.queue.IDuplicateKey;
 import ca.credits.base.queue.IQueue;
 import ca.credits.base.queue.StandaloneQueue;
 
@@ -55,7 +57,7 @@ public class ComponentFactory {
      * @param <T> queue type
      * @return queue
      */
-    public static <T> IQueue<T> createQueue(String name){
+    public static <T extends IDuplicateKey> IQueue<T> createQueue(String name){
         if (distribute){
             return null;
         }else {

@@ -2,7 +2,8 @@ package ca.credits.engine.downloader;
 
 import ca.credits.base.event.IEvent;
 import ca.credits.common.Properties;
-import ca.credits.engine.IRequest;
+import ca.credits.engine.AbstractRequest;
+import org.apache.commons.lang.StringUtils;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.RequestBuilderBase;
@@ -10,19 +11,14 @@ import org.asynchttpclient.RequestBuilderBase;
 /**
  * Created by chenwen on 16/8/31.
  */
-public class AsyncHttpClientRequest implements IRequest {
-    /**
-     * event listener
-     */
-    private IEvent listener;
-
+public class AsyncHttpClientRequest extends AbstractRequest {
     /**
      * async http request
      */
     private Request request;
 
-    public AsyncHttpClientRequest(IEvent listener){
-        this.listener = listener;
+    public AsyncHttpClientRequest(IEvent event){
+        super(event);
         buildRequest();
     }
 
@@ -30,11 +26,16 @@ public class AsyncHttpClientRequest implements IRequest {
      * build async http request
      */
     private void buildRequest(){
-        Properties properties = listener.getNode().getProperties();
+        RequestBuilderBase<RequestBuilder> requestBuilder = new RequestBuilder(getMethod().getValue());
 
-        RequestBuilderBase<RequestBuilder> requestBuilder = new RequestBuilder(properties.getString("method"));
+        requestBuilder.setUrl(getUrl());
 
-        requestBuilder.setUrl(properties.getString("url"));
+        requestBuilder.setHeader(HttpHeader.USERAGENT.getValue(),getUserAgent());
+
+        if (StringUtils.isNotEmpty(getReferer())) {
+            requestBuilder.setHeader(HttpHeader.REFERER.getValue(), getReferer());
+        }
+
 
         request = requestBuilder.build();
     }
@@ -45,13 +46,5 @@ public class AsyncHttpClientRequest implements IRequest {
      */
     public Request getRequest() {
         return request;
-    }
-
-    /**
-     * get event
-     * @return event
-     */
-    public IEvent getListener() {
-        return listener;
     }
 }

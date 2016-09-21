@@ -9,7 +9,7 @@ import ca.credits.base.event.IEvent;
 import ca.credits.base.gateway.DefaultGateway;
 import ca.credits.base.gateway.IGateway;
 import ca.credits.base.kit.Constants;
-import ca.credits.common.ListUtil;
+import ca.credits.common.util.ListUtil;
 import ca.credits.common.Properties;
 import lombok.extern.slf4j.Slf4j;
 import parsii.tokenizer.ParseException;

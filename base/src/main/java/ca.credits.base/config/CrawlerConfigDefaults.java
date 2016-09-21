@@ -26,4 +26,8 @@ public final class CrawlerConfigDefaults {
     public static boolean defaultUseProxy(){
         return CrawlerConfigHelper.getAsyncHttpClientConfig().getBoolean(CONFIG_ROOT + "useProxy");
     }
+
+    public static long defaultHTTPTimeout(){
+        return CrawlerConfigHelper.getAsyncHttpClientConfig().getLong(CONFIG_ROOT + "httpTimeOut");
+    }
 }

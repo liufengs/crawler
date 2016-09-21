@@ -18,16 +18,17 @@ import javax.inject.Singleton;
 public class AsyncHttpClientWorkerManager extends AbstractWorkerManager<AsyncHttpClientRequest,AsyncHttpClientWorker>{
     @Inject
     public AsyncHttpClientWorkerManager(IEngine engine, IBalanceManager balanceManager){
-        super(engine,balanceManager,AsyncHttpClientWorker.class,1);
+        super(engine,balanceManager,AsyncHttpClientWorker.class,2);
     }
 
     @Override
-    protected void addTask(IEvent event) {
+    protected boolean addTask(IEvent event) {
         try {
-            queue.put(new AsyncHttpClientRequest(event));
+            return queue.put(new AsyncHttpClientRequest(event));
         } catch (InterruptedException e) {
             event.onThrowable(event,e,null);
         }
+        return false;
     }
 
     @Override

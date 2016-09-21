@@ -27,7 +27,10 @@ public class DefaultEngine implements IEngine{
     @Override
     public void execute(IEvent event) {
         IWorkerManager workerManager = workerManagerMap.get(event.getWorkerClassName().toLowerCase());
-        workerManager.add(event);
+        boolean result = workerManager.add(event);
+        if (!result){
+            event.onComplete(event,null);
+        }
     }
 
     /**

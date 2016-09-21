@@ -14,7 +14,7 @@ public interface IQueue<T> {
      * push task to queue
      * @param t task
      */
-    void put(T t)throws InterruptedException;
+    boolean put(T t)throws InterruptedException;
 
     /**
      * get least task
@@ -22,5 +22,9 @@ public interface IQueue<T> {
      */
     int getLeastTask();
 
+    /**
+     * get queue name
+     * @return name
+     */
     String getName();
 }

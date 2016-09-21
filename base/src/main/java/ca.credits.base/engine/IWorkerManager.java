@@ -17,7 +17,7 @@ public interface IWorkerManager<T> extends IBalance{
      * add event
      * @param event event
      */
-    void add(IEvent event);
+    boolean add(IEvent event);
 
     /**
      * when worker is shutdown

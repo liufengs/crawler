@@ -4,13 +4,14 @@ import ca.credits.base.diagram.AbstractNode;
 import ca.credits.base.event.IEvent;
 import ca.credits.base.task.ITask;
 import ca.credits.base.util.StringUtils;
-import ca.credits.common.ListUtil;
+import ca.credits.common.util.ListUtil;
 import ca.credits.common.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by chenwen on 16/8/26.
@@ -59,6 +60,11 @@ public abstract class AbstractExecutive implements IExecutive {
     protected Throwable throwable;
 
     /**
+     * child id
+     */
+    protected AtomicLong childId;
+
+    /**
      * the default constructor
      */
     public AbstractExecutive(String activityId, AbstractNode node, IExecutiveManager regulator){
@@ -67,6 +73,7 @@ public abstract class AbstractExecutive implements IExecutive {
         this.node = node;
         this.activityId = activityId;
         this.regulator = regulator;
+        this.childId = new AtomicLong(0);
     }
 
     /**
@@ -185,5 +192,10 @@ public abstract class AbstractExecutive implements IExecutive {
     @Override
     public boolean isComplete() {
         return getStatus() == Status.EXCEPTION || getStatus() == Status.DONE;
+    }
+
+    @Override
+    public String getRandomChildId() {
+        return String.format("%s.%s.%s",getActivityId(),getId(),childId.incrementAndGet());
     }
 }

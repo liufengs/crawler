@@ -15,7 +15,11 @@
         <module>configuration</module>
         <module>common-util</module>
         <module>base</module>
-        <module>extension</module>
+        <module>queue</module>
+        <module>deep</module>
+        <module>webmagic-core</module>
+        <module>webmagic-extension</module>
+        <module>business</module>
     </modules>
 
     <packaging>pom</packaging>

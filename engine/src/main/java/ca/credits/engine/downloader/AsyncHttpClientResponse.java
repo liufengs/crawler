@@ -1,20 +1,13 @@
 package ca.credits.engine.downloader;
 
-import ca.credits.base.event.IEvent;
-import ca.credits.engine.IRequest;
-import ca.credits.engine.IResponse;
-import org.asynchttpclient.Request;
+import ca.credits.engine.AbstractResponse;
+import ca.credits.engine.AbstractRequest;
 import org.asynchttpclient.Response;
 
 /**
  * Created by chenwen on 16/8/31.
  */
-public class AsyncHttpClientResponse implements IResponse {
-    /**
-     * event listener
-     */
-    private IEvent listener;
-
+public class AsyncHttpClientResponse extends AbstractResponse {
     /**
      * async http request
      */
@@ -23,24 +16,20 @@ public class AsyncHttpClientResponse implements IResponse {
     /**
      * request
      */
-    private IRequest request;
+    private AbstractRequest request;
 
-    public AsyncHttpClientResponse(IEvent listener,IRequest request,Response response){
-        this.listener = listener;
+    public AsyncHttpClientResponse(AbstractRequest request, Response response){
+        super(request,response.getStatusCode(),response.getResponseBody(request.getCharset()));
         this.request = request;
         this.response = response;
     }
 
-    public IEvent getListener() {
-        return listener;
+    @Override
+    public AbstractRequest getRequest() {
+        return request;
     }
 
     public Response getResponse() {
         return response;
-    }
-
-    @Override
-    public IRequest getRequest() {
-        return request;
     }
 }

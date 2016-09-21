@@ -4,9 +4,9 @@ import ca.credits.base.ComponentFactory;
 import ca.credits.base.IExecutive;
 import ca.credits.base.concurrent.ConcurrentLockException;
 import ca.credits.base.concurrent.TryLockTimeoutException;
-import ca.credits.common.ListUtil;
+import ca.credits.base.kit.Constants;
+import ca.credits.common.util.ListUtil;
 import ca.credits.common.Properties;
-import lombok.Builder;
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -63,6 +63,11 @@ public abstract class AbstractNode {
     private boolean isKeyNode;
 
     /**
+     * the duplicate key
+     */
+    private String duplicateKey;
+
+    /**
      * the lockTimeUnit
      */
     protected TimeUnit lockTimeUnit = TimeUnit.MILLISECONDS;
@@ -92,6 +97,13 @@ public abstract class AbstractNode {
         parents = new ArrayList<>();
         properties = new Properties();
     }
+
+    /**
+     * clone
+     * @return node
+     */
+    public abstract <T extends AbstractNode> T copy();
+
 
     public AbstractNode name(String name){
         this.name = name;
@@ -217,5 +229,12 @@ public abstract class AbstractNode {
     public AbstractNode property(String key,Object value){
         properties.put(key,value);
         return this;
+    }
+
+    public String getDuplicateKey(){
+        if (properties.containsKey(Constants.RequestParams.URL)){
+            return properties.getString(Constants.RequestParams.URL);
+        }
+        return null;
     }
 }

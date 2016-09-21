@@ -35,12 +35,13 @@ public class LoggerWorkerManager extends AbstractWorkerManager<DefaultEvent,Logg
      * @param event event
      */
     @Override
-    public void addTask(IEvent event) {
+    public boolean addTask(IEvent event) {
         try {
-            queue.put((DefaultEvent) event);
+            return queue.put((DefaultEvent) event);
         } catch (InterruptedException e) {
             event.onThrowable(event,e,null);
         }
+        return false;
     }
 
     /**
